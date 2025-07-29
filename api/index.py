@@ -1,19 +1,15 @@
-from mangum import Mangum
-
-from fastapi import FastAPI, Depends, HTTPException, Body
+from fastapi import FastAPI, Depends, HTTPException, Body, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from datetime import date, timedelta, datetime
+from sqlalchemy import desc
+from fastapi.responses import JSONResponse
+from typing import Optional
+from mangum import Mangum
+
 from . import models, auth, database
 from .database import SessionLocal
-from datetime import date, timedelta, datetime  # ✅ แก้ตรงนี้
-from sqlalchemy import desc  # 👈 นำเข้า
-from fastapi.responses import JSONResponse
-from fastapi.requests import Request
-from fastapi import status
-from typing import Optional
-from fastapi import Query
 from .schemas import TicketUpdate
-
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -72,41 +68,30 @@ def get_jobs(
         models.Job.driver_name == current_user.username
     ).all()
 
-    # ✅ Sort แบบ custom: เอาวันนี้ขึ้นก่อน แล้วตามด้วยวันอื่นเรียงมาก → น้อย
     sorted_jobs = sorted(
         jobs,
         key=lambda job: (
-            0 if job.date_plan == today_date else 1,   # วันนี้อยู่บนสุด
-            -job.date_plan.toordinal()                # วันอื่นเรียง DESC
+            0 if job.date_plan == today_date else 1,
+            -job.date_plan.toordinal()
         )
     )
 
     return [job.__dict__ for job in sorted_jobs]
 
-
-
-from fastapi import FastAPI, Depends, HTTPException, Body, Query
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Optional
-
-
+# --- Job Tickets ---
 @app.post("/job-tickets")
 def create_or_update_ticket(
     data: TicketUpdate = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    # ตรวจว่ามี job หรือไม่
     job = db.query(models.Job).filter(models.Job.load_id == data.load_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="load_id not found in jobdata")
 
-    # ค้นหา ticket เก่า
     ticket = db.query(models.Ticket).filter(models.Ticket.load_id == data.load_id).first()
 
     if ticket:
-        # ✅ Update เฉพาะ field ที่ส่งมา
         for field, value in data.dict(exclude_unset=True).items():
             if field != "load_id":
                 setattr(ticket, field, value)
@@ -114,13 +99,12 @@ def create_or_update_ticket(
         db.refresh(ticket)
         return {"message": "✅ Ticket updated", "ticket": ticket.__dict__}
     else:
-        # ✅ Create ใหม่
         new_ticket = models.Ticket(**data.dict())
         db.add(new_ticket)
         db.commit()
         db.refresh(new_ticket)
         return {"message": "✅ Ticket created", "ticket": new_ticket.__dict__}
-    
+
 @app.get("/job-tickets")
 def get_job_tickets(
     load_id: Optional[str] = Query(None),
@@ -130,17 +114,15 @@ def get_job_tickets(
     if not load_id:
         raise HTTPException(status_code=400, detail="Missing load_id")
 
-    # ค้นหา job ตาม load_id
     job = db.query(models.Job).filter(models.Job.load_id == load_id).first()
     if not job:
         return {"message": f"No job found with load_id = {load_id}"}
 
-    # ค้นหา ticket ที่ตรงกับ job.load_id
     ticket = db.query(models.Ticket).filter(models.Ticket.load_id == load_id).first()
-
     job_dict = job.__dict__.copy()
     job_dict["ticket"] = ticket.__dict__ if ticket else None
 
     return job_dict
 
+# Export the Mangum handler for Vercel
 handler = Mangum(app)
