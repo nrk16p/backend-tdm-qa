@@ -1,12 +1,10 @@
-from app.main import app
 from mangum import Mangum
 
-handler = Mangum(app)
 from fastapi import FastAPI, Depends, HTTPException, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from app import models, auth, database
-from app.database import SessionLocal
+from api import models, auth, database
+from api.database import SessionLocal
 from datetime import date, timedelta, datetime  # ✅ แก้ตรงนี้
 from sqlalchemy import desc  # 👈 นำเข้า
 from fastapi.responses import JSONResponse
@@ -14,7 +12,7 @@ from fastapi.requests import Request
 from fastapi import status
 from typing import Optional
 from fastapi import Query
-from app.schemas import TicketUpdate
+from api.schemas import TicketUpdate
 
 
 models.Base.metadata.create_all(bind=database.engine)
@@ -145,3 +143,5 @@ def get_job_tickets(
     job_dict["ticket"] = ticket.__dict__ if ticket else None
 
     return job_dict
+
+handler = Mangum(app)
