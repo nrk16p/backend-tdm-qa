@@ -1,5 +1,3 @@
-from mangum import Mangum
-
 from fastapi import FastAPI, Depends, HTTPException, Body, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -114,5 +112,4 @@ def get_job_tickets(
 
     return job_dict
 
-handler = Mangum(app)
 
