@@ -3,8 +3,8 @@ from mangum import Mangum
 from fastapi import FastAPI, Depends, HTTPException, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from api import models, auth, database
-from api.database import SessionLocal
+from . import models, auth, database
+from .database import SessionLocal
 from datetime import date, timedelta, datetime  # ✅ แก้ตรงนี้
 from sqlalchemy import desc  # 👈 นำเข้า
 from fastapi.responses import JSONResponse
@@ -12,7 +12,7 @@ from fastapi.requests import Request
 from fastapi import status
 from typing import Optional
 from fastapi import Query
-from api.schemas import TicketUpdate
+from .schemas import TicketUpdate
 
 
 models.Base.metadata.create_all(bind=database.engine)
