@@ -87,7 +87,6 @@ def get_jobs(
 
 from fastapi import FastAPI, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
-from app import models
 from pydantic import BaseModel
 from typing import Optional
 
