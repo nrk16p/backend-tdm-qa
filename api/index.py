@@ -1,3 +1,5 @@
+from mangum import Mangum
+
 from fastapi import FastAPI, Depends, HTTPException, Body, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -5,8 +7,6 @@ from datetime import date, timedelta, datetime
 from sqlalchemy import desc
 from fastapi.responses import JSONResponse
 from typing import Optional
-from mangum import Mangum
-
 from . import models, auth, database
 from .database import SessionLocal
 from .schemas import TicketUpdate
@@ -40,17 +40,7 @@ def login(
     access_token = auth.create_access_token(data={"sub": user.username, "role": user.role})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- Authenticated User Info ---
-@app.get("/me")
-def read_users_me(current_user: models.User = Depends(auth.get_current_user)):
-    return {"username": current_user.username, "role": current_user.role}
 
-# --- Admin Only ---
-@app.get("/admin-only")
-def read_admin_data(current_user: models.User = Depends(auth.get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admins only!")
-    return {"msg": "Welcome, admin"}
 
 # --- Jobs Endpoint ---
 @app.get("/jobs")
@@ -124,5 +114,5 @@ def get_job_tickets(
 
     return job_dict
 
-# Export the Mangum handler for Vercel
-handler = Mangum(app, lifespan="off")
+handler = Mangum(app)
+

@@ -10,3 +10,4 @@ mangum
 fastapi
 uvicorn
 python-multipart
+uvicorn
