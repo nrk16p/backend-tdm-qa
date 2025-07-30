@@ -36,7 +36,7 @@ def login(
         raise HTTPException(status_code=400, detail="Incorrect username or password")
 
     access_token = auth.create_access_token(data={"sub": user.username, "role": user.role})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer","role": user.role}
 
 
 
@@ -66,6 +66,19 @@ def get_jobs(
 
     return [job.__dict__ for job in sorted_jobs]
 
+def compute_status(ticket):
+    # ให้เช็คตามลำดับล่าสุด -> earliest
+    if ticket.complete_datetime:        return "เสร็จงาน"
+    if ticket.end_unload_datetime:      return "ลงสินค้าเสร็จ"
+    if ticket.start_unload_datetime:    return "เริ่มลงสินค้า"
+    if ticket.desination_datetime:      return "ถึงปลายทาง"
+    if ticket.intransit_datetime:       return "เริ่มขนส่ง"
+    if ticket.end_recive_datetime:      return "ขึ้นสินค้าเสร็จ"
+    if ticket.start_recive_datetime:    return "เริ่มขึ้นสินค้า"
+    if ticket.origin_datetime:          return "ถึงต้นทาง"
+    if ticket.start_datetime:           return "เริ่มงาน"
+    return "พร้อมรับงาน"  
+
 # --- Job Tickets ---
 @app.post("/job-tickets")
 def create_or_update_ticket(
@@ -85,14 +98,27 @@ def create_or_update_ticket(
                 setattr(ticket, field, value)
         db.commit()
         db.refresh(ticket)
-        return {"message": "✅ Ticket updated", "ticket": ticket.__dict__}
+        # เพิ่มตรงนี้
+        status = compute_status(ticket)
     else:
         new_ticket = models.Ticket(**data.dict())
         db.add(new_ticket)
         db.commit()
         db.refresh(new_ticket)
-        return {"message": "✅ Ticket created", "ticket": new_ticket.__dict__}
+        # เพิ่มตรงนี้
+        status = compute_status(new_ticket)
 
+    # อัปเดต status ใน jobdata ถ้ามี
+    if status:
+        job.status = status
+        db.commit()
+        db.refresh(job)
+
+    return {
+        "message": "✅ Ticket updated" if ticket else "✅ Ticket created",
+        "ticket": (ticket or new_ticket).__dict__,
+        "new_status": status  # <<-- เพิ่มตรงนี้ (หรือจะตั้งชื่อ key ว่า "status" ก็ได้)
+    }
 @app.get("/job-tickets")
 def get_job_tickets(
     load_id: Optional[str] = Query(None),
