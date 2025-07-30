@@ -15,7 +15,7 @@ app = FastAPI()
 
 @app.get("/")
 def root():
-    return {"message": "Hello from FastAPI on Vercel!"}
+    return {"message": "backend-tdm"}
 
 # Dependency
 def get_db():
