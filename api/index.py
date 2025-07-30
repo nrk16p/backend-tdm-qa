@@ -50,11 +50,15 @@ def get_jobs(
     start_date = today_date - timedelta(days=7)
     end_date = today_date + timedelta(days=7)
 
-    jobs = db.query(models.Job).filter(
+    query = db.query(models.Job).filter(
         models.Job.date_plan >= start_date,
         models.Job.date_plan <= end_date,
-        models.Job.driver_name == current_user.username
-    ).all()
+    )
+    # ถ้าไม่ใช่ admin ให้ filter ตาม driver_name
+    if current_user.role != "admin":
+        query = query.filter(models.Job.driver_name == current_user.username)
+
+    jobs = query.all()
 
     sorted_jobs = sorted(
         jobs,
@@ -64,7 +68,10 @@ def get_jobs(
         )
     )
 
-    return [job.__dict__ for job in sorted_jobs]
+    return {
+        "role": current_user.role,            # <<< เพิ่ม role ใน response
+        "jobs": [job.__dict__ for job in sorted_jobs]
+    }
 
 def compute_status(ticket):
     # ให้เช็คตามลำดับล่าสุด -> earliest
