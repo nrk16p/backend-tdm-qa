@@ -61,8 +61,5 @@ class Palletdata(Base):
     return_pallet = Column(Integer)
     borrow_customer_pallet = Column(Integer)
     return_customer_pallet = Column(Integer)
-    start_unload_datetime = Column(Integer)
-    end_unload_datetime = Column(Integer)
-    complete_datetime = Column(Integer)
     
 

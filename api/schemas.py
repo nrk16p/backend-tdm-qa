@@ -23,6 +23,3 @@ class PalletDataUpdate(BaseModel):
     return_pallet: Optional[int] = None
     borrow_customer_pallet: Optional[int] = None
     return_customer_pallet: Optional[int] = None
-    start_unload_datetime: Optional[int] = None
-    end_unload_datetime: Optional[int] = None
-    complete_datetime: Optional[int] = None
