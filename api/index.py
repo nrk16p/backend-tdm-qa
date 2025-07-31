@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from . import models, auth, database
 from .database import SessionLocal
-from .schemas import TicketUpdate
+from .schemas import TicketUpdate , PalletDataUpdate
 from fastapi import Header, HTTPException, status
 
 models.Base.metadata.create_all(bind=database.engine)
@@ -172,39 +172,5 @@ def get_job_tickets(
 
     return job_dict
 
-@app.post("/palletdata")
-def create_or_update_palletdata(
-    data: PalletDataUpdate = Body(...),
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    # ตรวจสอบว่ามี job นี้หรือไม่ (optionally)
-    job = db.query(models.Job).filter(models.Job.load_id == data.load_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="load_id not found in jobdata")
 
-    # ค้นหา palletdata ที่มี load_id นี้
-    pallet = db.query(models.Palletdata).filter(models.Palletdata.load_id == data.load_id).first()
-
-    if pallet:
-        # update
-        for field, value in data.dict(exclude_unset=True).items():
-            if field != "load_id":
-                setattr(pallet, field, value)
-        db.commit()
-        db.refresh(pallet)
-        message = "✅ Palletdata updated"
-    else:
-        # create
-        new_pallet = models.Palletdata(**data.dict())
-        db.add(new_pallet)
-        db.commit()
-        db.refresh(new_pallet)
-        pallet = new_pallet
-        message = "✅ Palletdata created"
-
-    return {
-        "message": message,
-        "palletdata": pallet.__dict__,
-    }
 
