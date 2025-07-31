@@ -38,6 +38,20 @@ def login(
     access_token = auth.create_access_token(data={"sub": user.username, "role": user.role})
     return {"access_token": access_token, "token_type": "bearer","role": user.role}
 
+@app.get("/user")
+def get_users(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    users = db.query(models.User).filter(models.User.role == "user").all()
+    result = [
+        {
+            "username": user.username,
+            "role": user.role,
+        }
+        for user in users
+    ]
+    return {"users": result}
 
 
 # --- Jobs Endpoint ---
