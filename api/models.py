@@ -79,3 +79,18 @@ class Palletdata(Base):
     start_unload_datetime = Column(Integer)
     end_unload_datetime = Column(Integer)
     complete_datetime = Column(Integer)
+    
+    from pydantic import BaseModel
+from typing import Optional
+
+class PalletDataUpdate(BaseModel):
+    load_id = Column(String, primary_key=True, index=True)
+    tranfer_pallet: Optional[int] = None
+    change_pallet: Optional[int] = None
+    drop_pallet: Optional[int] = None
+    return_pallet: Optional[int] = None
+    borrow_customer_pallet: Optional[int] = None
+    return_customer_pallet: Optional[int] = None
+    start_unload_datetime: Optional[int] = None
+    end_unload_datetime: Optional[int] = None
+    complete_datetime: Optional[int] = None
