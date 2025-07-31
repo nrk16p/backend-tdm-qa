@@ -13,3 +13,16 @@ class TicketUpdate(BaseModel):
     start_unload_datetime: Optional[str] = None
     end_unload_datetime: Optional[str] = None
     complete_datetime: Optional[str] = None
+
+
+class PalletDataUpdate(BaseModel):
+    load_id: str
+    tranfer_pallet: Optional[int] = None
+    change_pallet: Optional[int] = None
+    drop_pallet: Optional[int] = None
+    return_pallet: Optional[int] = None
+    borrow_customer_pallet: Optional[int] = None
+    return_customer_pallet: Optional[int] = None
+    start_unload_datetime: Optional[int] = None
+    end_unload_datetime: Optional[int] = None
+    complete_datetime: Optional[int] = None
