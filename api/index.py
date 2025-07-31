@@ -41,7 +41,6 @@ def login(
 @app.get("/user")
 def get_users(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
 ):
     users = db.query(models.User).filter(models.User.role == "user").all()
     result = [
