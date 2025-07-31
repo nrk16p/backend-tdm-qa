@@ -69,7 +69,7 @@ class Palletdata(Base):
     __tablename__ = "palletdata"
     __table_args__ = {"schema": "fleetdata"}
 
-    load_id = Column(String(100), nullable=False)
+    load_id = Column(String, primary_key=True, index=True)
     tranfer_pallet = Column(Integer)
     change_pallet = Column(Integer)
     drop_pallet = Column(Integer)
