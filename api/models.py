@@ -67,6 +67,8 @@ class TicketUpdate(BaseModel):
 # Palletdata table
 class Palletdata(Base):
     __tablename__ = "palletdata"
+    __table_args__ = {"schema": "fleetdata"}
+
     load_id = Column(String(100), nullable=False)
     tranfer_pallet = Column(Integer)
     change_pallet = Column(Integer)
