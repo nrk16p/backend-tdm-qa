@@ -164,9 +164,13 @@ def get_job_tickets(
         return {"message": f"No job found with load_id = {load_id}"}
 
     ticket = db.query(models.Ticket).filter(models.Ticket.load_id == load_id).first()
+    pallet = db.query(models.Palletdata).filter(models.Palletdata.load_id == load_id).first()  # << เพิ่มตรงนี้
+
     job_dict = job.__dict__.copy()
     job_dict["ticket"] = ticket.__dict__ if ticket else None
+    job_dict["palletdata"] = pallet.__dict__ if pallet else None   # << เพิ่มตรงนี้
 
     return job_dict
+
 
 

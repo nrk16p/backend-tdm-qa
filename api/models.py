@@ -63,3 +63,18 @@ class TicketUpdate(BaseModel):
     start_unload_datetime: Optional[str] = None
     end_unload_datetime: Optional[str] = None
     complete_datetime: Optional[str] = None
+
+# Palletdata table
+class Palletdata(Base):
+    __tablename__ = "palletdata"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    load_id = Column(String(100), nullable=False)
+    tranfer_pallet = Column(Integer)
+    change_pallet = Column(Integer)
+    drop_pallet = Column(Integer)
+    return_pallet = Column(Integer)
+    borrow_customer_pallet = Column(Integer)
+    return_customer_pallet = Column(Integer)
+    start_unload_datetime = Column(Integer)
+    end_unload_datetime = Column(Integer)
+    complete_datetime = Column(Integer)
