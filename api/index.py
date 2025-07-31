@@ -8,6 +8,7 @@ from typing import Optional
 from . import models, auth, database
 from .database import SessionLocal
 from .schemas import TicketUpdate
+from fastapi import Header, HTTPException, status
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -38,9 +39,19 @@ def login(
     access_token = auth.create_access_token(data={"sub": user.username, "role": user.role})
     return {"access_token": access_token, "token_type": "bearer","role": user.role}
 
+API_SECRET_KEY = "=E=QY]!{PjD53Mq"
+def verify_api_key(x_api_key: str = Header(...)):
+    if x_api_key != API_SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API Key"
+        )
+
 @app.get("/user")
 def get_users(
     db: Session = Depends(get_db),
+        api_key: str = Depends(verify_api_key),   
+
 ):
     users = db.query(models.User).filter(models.User.role == "user").all()
     result = [
