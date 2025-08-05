@@ -99,7 +99,7 @@ def get_jobs(
 
 def compute_status(ticket):
     # ให้เช็คตามลำดับล่าสุด -> earliest
-    if ticket.complete_datetime:        return "เสร็จงาน"
+    if ticket.complete_datetime:        return "จัดส่งแล้ว (POD)"
     if ticket.end_unload_datetime:      return "ลงสินค้าเสร็จ"
     if ticket.start_unload_datetime:    return "เริ่มลงสินค้า"
     if ticket.desination_datetime:      return "ถึงปลายทาง"
@@ -107,7 +107,7 @@ def compute_status(ticket):
     if ticket.end_recive_datetime:      return "ขึ้นสินค้าเสร็จ"
     if ticket.start_recive_datetime:    return "เริ่มขึ้นสินค้า"
     if ticket.origin_datetime:          return "ถึงต้นทาง"
-    if ticket.start_datetime:           return "เริ่มงาน"
+    if ticket.start_datetime:           return "รับงาน"
     return "พร้อมรับงาน"  
 
 # --- Job Tickets ---
