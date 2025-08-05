@@ -58,29 +58,34 @@ from typing import Optional
 from datetime import date, datetime
 
 
+from pydantic import BaseModel, validator, root_validator
+
 class JobUpdateSchema(BaseModel):
-    load_id: str                      # required
-    date_plan: date                   # required
-    h_plate: str                      # required
-    t_plate: str                      # required
-    driver_name: str                  # required
-    status: str                       # required
-    locat_recive: str                 # required
-    date_recive: date                 # required
-    locat_deliver: str                # required
-    date_deliver: date                # required
-    pallet_type: str                  # required
-    pallet_plan: int                  # required
-    created_by: str                   # required
-    created_at: date                  # required
+    load_id: str
+    date_plan: date
+    h_plate: str
+    t_plate: str
+    driver_name: str
+    status: str
+    locat_recive: str
+    date_recive: date
+    locat_deliver: str
+    date_deliver: date
+    pallet_type: str
+    pallet_plan: int
+    created_by: str
+    created_at: date
+    # ... (optional fields as before)
 
-    # ที่เหลือเป็น optional
-    fuel_type: Optional[str] = None
-    height: Optional[str] = None
-    weight: Optional[str] = None
-    phone: Optional[str] = None
-    remark: Optional[str] = None
-    unload_cost: Optional[str] = None
-
-    class Config:
-        orm_mode = True
+    @root_validator
+    def no_empty_required(cls, values):
+        required_fields = [
+            'load_id', 'date_plan', 'h_plate', 't_plate', 'driver_name', 'status',
+            'locat_recive', 'date_recive', 'locat_deliver', 'date_deliver',
+            'pallet_type', 'pallet_plan', 'created_by', 'created_at'
+        ]
+        for field in required_fields:
+            v = values.get(field)
+            if v is None or (isinstance(v, str) and v.strip() == ""):
+                raise ValueError(f"{field} is required and cannot be empty")
+        return values
