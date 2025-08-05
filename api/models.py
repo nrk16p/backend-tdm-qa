@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Date
+from sqlalchemy import Column, String, Integer, Date, DateTime
 from .database import Base
 
 # ── User Model ───────────────────────────────────────
@@ -33,6 +33,10 @@ class Job(Base):
     pallet_type = Column(String)
     pallet_plan = Column(Integer)
     unload_cost = Column(String)
+    created_by = Column(String(100))     
+    created_at = Column(DateTime)        
+    updated_by = Column(String(100))        
+    updated_at = Column(DateTime)        
     
 class Ticket(Base):
     __tablename__ = "ticketdata"

@@ -7,8 +7,10 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from . import models, auth, database
 from .database import SessionLocal
-from .schemas import TicketUpdate , PalletDataUpdate
+from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema
 from fastapi import Header, HTTPException, status
+from datetime import datetime
+from typing import List
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -209,3 +211,93 @@ def create_or_update_palletdata(
         "message": message,
         "palletdata": pallet.__dict__,
     }
+def model_to_dict(obj):
+    if not obj:
+        return None
+    return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+ 
+@app.post("/jobs")
+def create_job(
+    data: JobSchema = Body(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    now = datetime.now()
+    job = db.query(models.Job).filter(models.Job.load_id == data.load_id).first()
+    if job:
+        raise HTTPException(status_code=400, detail="Job with this load_id already exists")
+    new_job = models.Job(
+        **data.dict(exclude={"created_at", "updated_at", "created_by", "updated_by"}),
+        created_by=current_user.username,
+        created_at=now,
+        updated_by=current_user.username,
+        updated_at=now,
+    )
+    db.add(new_job)
+    db.commit()
+    db.refresh(new_job)
+    return {"message": "✅ Job created", "job": model_to_dict(new_job)}
+
+@app.put("/jobs")
+def update_job(
+    load_id: str = Query(...),
+    data: JobUpdateSchema = Body(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    now = datetime.now()
+    job = db.query(models.Job).filter(models.Job.load_id == load_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    for field, value in data.dict(exclude_unset=True).items():
+        setattr(job, field, value)
+    job.updated_at = now
+    job.updated_by = current_user.username
+    db.commit()
+    db.refresh(job)
+    return {"message": "✅ Job updated", "job": model_to_dict(job)}
+
+@app.delete("/jobs")
+def delete_job(
+    load_id: str = Query(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    job = db.query(models.Job).filter(models.Job.load_id == load_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    db.delete(job)
+    db.commit()
+    return {"message": "✅ Job deleted"}
+
+@app.post("/jobs/bulk")
+def create_jobs_bulk(
+    data: List[JobSchema] = Body(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    now = datetime.now()
+    results = []
+    for job_in in data:
+        job = db.query(models.Job).filter(models.Job.load_id == job_in.load_id).first()
+        if job:
+            results.append({
+                "load_id": job_in.load_id,
+                "status": "❌ already exists"
+            })
+            continue
+        new_job = models.Job(
+            **job_in.dict(exclude={"created_at", "updated_at", "created_by", "updated_by"}),
+            created_by=current_user.username,
+            created_at=now,
+            updated_by=current_user.username,
+            updated_at=now,
+        )
+        db.add(new_job)
+        db.flush()  # ใช้ flush แทน commit เพื่อ insert ได้ไว
+        results.append({
+            "load_id": job_in.load_id,
+            "status": "✅ created"
+        })
+    db.commit()  # commit ทีเดียวหลัง loop
+    return {"results": results}
