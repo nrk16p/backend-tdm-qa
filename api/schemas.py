@@ -133,9 +133,9 @@ class JobUpdateSchemaCreate(BaseModel):
     driver_name: str
     status: str
     locat_recive: str
-    date_recive: date
+    date_recive: str
     locat_deliver: str
-    date_deliver: date
+    date_deliver: str
     pallet_type: str
     pallet_plan: int
     created_by: str
