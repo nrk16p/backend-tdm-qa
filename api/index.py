@@ -14,8 +14,15 @@ from typing import List
 
 models.Base.metadata.create_all(bind=database.engine)
 
-app = FastAPI()
-
+app = FastAPI(
+    title="TDM Backend API",
+    description="API สำหรับ TDM Fleet Management",
+    version="1.2.1",    # << ใส่ version ที่ต้องการ
+    contact={
+        "name": "Plug",
+        "email": "narongkorn.a@menatransport.co.th",
+    }
+)
 @app.get("/")
 def root():
     return {"message": "backend-tdm"}
