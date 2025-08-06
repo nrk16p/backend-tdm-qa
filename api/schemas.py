@@ -58,7 +58,7 @@ from typing import Optional
 from datetime import date, datetime
 
 
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, model_validator
 from typing import Optional
 from datetime import date, datetime
 
@@ -88,18 +88,15 @@ class JobUpdateSchema(BaseModel):
     updated_by: Optional[str] = None
     updated_at: Optional[datetime] = None
 
-    @root_validator
-    def no_empty_required(cls, values):
+    @model_validator(mode="after")
+    def no_empty_required(self):
         required_fields = [
             'load_id', 'date_plan', 'h_plate', 't_plate', 'driver_name', 'status',
             'locat_recive', 'date_recive', 'locat_deliver', 'date_deliver',
             'pallet_type', 'pallet_plan', 'created_by', 'created_at'
         ]
         for field in required_fields:
-            v = values.get(field)
+            v = getattr(self, field)
             if v is None or (isinstance(v, str) and v.strip() == ""):
                 raise ValueError(f"{field} is required and cannot be empty")
-        return values
-
-    class Config:
-        orm_mode = True
+        return self
