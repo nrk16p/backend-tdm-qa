@@ -257,6 +257,7 @@ def update_job(
     db.refresh(job)
     return {"message": "✅ Job updated", "job": model_to_dict(job)}
 
+
 @app.delete("/jobs")
 def delete_job(
     load_id: str = Query(...),
