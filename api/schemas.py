@@ -124,3 +124,42 @@ class JobSchemaPut(BaseModel):
 
     class Config:
         orm_mode = True
+        
+class JobUpdateSchemaCreate(BaseModel):
+    load_id:  Optional[str] = None
+    date_plan: date
+    h_plate: str
+    t_plate: str
+    driver_name: str
+    status: str
+    locat_recive: str
+    date_recive: date
+    locat_deliver: str
+    date_deliver: date
+    pallet_type: str
+    pallet_plan: int
+    created_by: str
+    created_at: date
+
+    # Optional fields
+    fuel_type: Optional[str] = None
+    height: Optional[str] = None
+    weight: Optional[str] = None
+    phone: Optional[str] = None
+    remark: Optional[str] = None
+    unload_cost: Optional[str] = None
+    updated_by: Optional[str] = None
+    updated_at: Optional[datetime] = None
+
+    @model_validator(mode="after")
+    def no_empty_required(self):
+        required_fields = [
+             'date_plan', 'h_plate', 't_plate', 'driver_name', 'status',
+            'locat_recive', 'date_recive', 'locat_deliver', 'date_deliver',
+            'pallet_type', 'pallet_plan', 'created_by', 'created_at'
+        ]
+        for field in required_fields:
+            v = getattr(self, field)
+            if v is None or (isinstance(v, str) and v.strip() == ""):
+                raise ValueError(f"{field} is required and cannot be empty")
+        return self

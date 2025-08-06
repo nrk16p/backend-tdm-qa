@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from . import models, auth, database
 from .database import SessionLocal
-from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut
+from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut , JobUpdateSchemaCreate
 from fastapi import Header, HTTPException, status
 from datetime import datetime
 from typing import List
@@ -152,6 +152,7 @@ def create_or_update_ticket(
         "ticket": (ticket or new_ticket).__dict__,
         "new_status": status  # <<-- เพิ่มตรงนี้ (หรือจะตั้งชื่อ key ว่า "status" ก็ได้)
     }
+
 @app.get("/job-tickets")
 def get_job_tickets(
     load_id: Optional[str] = Query(None),
@@ -216,21 +217,43 @@ def model_to_dict(obj):
         return None
     return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
  
+from sqlalchemy import func
+
 @app.post("/jobs")
 def create_job(
-    data: JobUpdateSchema = Body(...),
+    data: JobUpdateSchemaCreate = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
     now = datetime.now()
-    # 1. Check duplicate
-    job = db.query(models.Job).filter(models.Job.load_id == data.load_id).first()
-    if job:
-        raise HTTPException(status_code=400, detail="Job with this load_id already exists")
+
+    # 1. สร้างรหัส load_id ใหม่อัตโนมัติ
+    # สมมุติว่า date_plan ส่งมาเป็น date/datetime ใน data
+    if not data.date_plan:
+        raise HTTPException(status_code=400, detail="date_plan is required")
+
+    # YYMMDD (เช่น 250806)
+    yymmdd = data.date_plan.strftime("%y%m%d")
+    
+    # Query หาจำนวน job ของวันเดียวกันนี้
+    jobs_count = db.query(func.count(models.Job.load_id)) \
+        .filter(models.Job.date_plan == data.date_plan).scalar()
+    # รันนัมเบอร์ใหม่ (+1 เพราะเริ่มจาก 1)
+    running = jobs_count + 1
+
+    # Padding ด้วย 0 (เช่น 001)
+    running_str = f"{running:03d}"
+
+    load_id = f"TDM-{yymmdd}-{running_str}"
+
+    # double-check กัน insert ซ้ำ (น้อยมากจะเกิด)
+    if db.query(models.Job).filter(models.Job.load_id == load_id).first():
+        raise HTTPException(status_code=400, detail="Duplicate load_id, try again")
 
     # 2. Create Job
     new_job = models.Job(
-        **data.dict(exclude={"created_at", "updated_at", "created_by", "updated_by"}),
+        **data.dict(exclude={"created_at", "updated_at", "created_by", "updated_by", "load_id"}),
+        load_id=load_id,
         created_by=current_user.username,
         created_at=now,
         updated_by=current_user.username,
@@ -239,22 +262,21 @@ def create_job(
     db.add(new_job)
     
     # 3. Auto create Ticket (เฉพาะ load_id)
-    new_ticket = models.Ticket(load_id=data.load_id)
+    new_ticket = models.Ticket(load_id=load_id)
     db.add(new_ticket)
 
     # 4. Auto create Palletdata (เฉพาะ load_id)
-    new_pallet = models.Palletdata(load_id=data.load_id)
+    new_pallet = models.Palletdata(load_id=load_id)
     db.add(new_pallet)
     
     # 5. Commit ทุกอย่าง
     db.commit()
     db.refresh(new_job)
-    # (optionally refresh ticket, palletdata ถ้าต้องการ response กลับ)
     
     return {
         "message": "✅ Job created",
-        "job": model_to_dict(new_job)
-
+        "job": model_to_dict(new_job),
+        "load_id": load_id
     }
 
 @app.put("/jobs")
@@ -301,34 +323,68 @@ def delete_job(
     db.commit()
     return {"message": "✅ Job, Ticket, Palletdata deleted"}
 
+from sqlalchemy import func
+from typing import List
+
 @app.post("/jobs/bulk")
 def create_jobs_bulk(
-    data: List[JobSchema] = Body(...),
+    data: List[JobUpdateSchemaCreate] = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
     now = datetime.now()
     results = []
+
+    # cache นับจำนวน job ของแต่ละวันก่อน insert ในรอบนี้
+    running_count_map = {}
+
     for job_in in data:
-        job = db.query(models.Job).filter(models.Job.load_id == job_in.load_id).first()
-        if job:
+        if not job_in.date_plan:
             results.append({
-                "load_id": job_in.load_id,
-                "status": "❌ already exists"
+                "load_id": None,
+                "status": "❌ date_plan required"
             })
             continue
+
+        yymmdd = job_in.date_plan.strftime("%y%m%d")
+        key = str(job_in.date_plan)
+
+        # นับ job ที่อยู่ใน DB แล้ว + job ที่เตรียมจะ insert ในรอบนี้
+        if key not in running_count_map:
+            jobs_count = db.query(func.count(models.Job.load_id)).filter(models.Job.date_plan == job_in.date_plan).scalar()
+            running_count_map[key] = jobs_count
+
+        running_count_map[key] += 1
+        running_str = f"{running_count_map[key]:03d}"
+        load_id = f"TDM-{yymmdd}-{running_str}"
+
+        # Duplicate check
+        if db.query(models.Job).filter(models.Job.load_id == load_id).first():
+            results.append({
+                "load_id": load_id,
+                "status": "❌ duplicate"
+            })
+            continue
+
+        # Insert JOB
         new_job = models.Job(
-            **job_in.dict(exclude={"created_at", "updated_at", "created_by", "updated_by"}),
+            **job_in.dict(exclude={"created_at", "updated_at", "created_by", "updated_by", "load_id"}),
+            load_id=load_id,
             created_by=current_user.username,
             created_at=now,
             updated_by=current_user.username,
             updated_at=now,
         )
         db.add(new_job)
-        db.flush()  # ใช้ flush แทน commit เพื่อ insert ได้ไว
+
+        # Insert Ticket & Palletdata
+        db.add(models.Ticket(load_id=load_id))
+        db.add(models.Palletdata(load_id=load_id))
+
         results.append({
-            "load_id": job_in.load_id,
+            "load_id": load_id,
             "status": "✅ created"
         })
-    db.commit()  # commit ทีเดียวหลัง loop
+
+    db.commit()
     return {"results": results}
