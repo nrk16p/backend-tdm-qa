@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from . import models, auth, database
 from .database import SessionLocal
-from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema
+from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut
 from fastapi import Header, HTTPException, status
 from datetime import datetime
 from typing import List
@@ -260,7 +260,7 @@ def create_job(
 @app.put("/jobs")
 def update_job(
     load_id: str = Query(...),
-    data: JobSchema = Body(...),
+    data: JobSchemaPut = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):

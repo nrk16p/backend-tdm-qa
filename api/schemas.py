@@ -53,9 +53,6 @@ class JobSchema(BaseModel):
     class Config:
         orm_mode = True
         
-from pydantic import BaseModel
-from typing import Optional
-from datetime import date, datetime
 
 
 from pydantic import BaseModel, model_validator
@@ -100,3 +97,30 @@ class JobUpdateSchema(BaseModel):
             if v is None or (isinstance(v, str) and v.strip() == ""):
                 raise ValueError(f"{field} is required and cannot be empty")
         return self
+    
+class JobSchemaPut(BaseModel): 
+    load_id: Optional[str] = None
+    date_plan: Optional[date] = None
+    h_plate: Optional[str] = None
+    t_plate: Optional[str] = None
+    fuel_type: Optional[str] = None
+    height: Optional[str] = None
+    weight: Optional[str] = None
+    driver_name: Optional[str] = None
+    phone: Optional[str] = None
+    status: Optional[str] = None
+    remark: Optional[str] = None
+    locat_recive: Optional[str] = None
+    date_recive: Optional[date] = None
+    locat_deliver: Optional[str] = None
+    date_deliver: Optional[date] = None
+    pallet_type: Optional[str] = None
+    pallet_plan: Optional[int] = None
+    unload_cost: Optional[str] = None
+    created_by: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_by: Optional[str] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
