@@ -223,9 +223,12 @@ def create_job(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     now = datetime.now()
+    # 1. Check duplicate
     job = db.query(models.Job).filter(models.Job.load_id == data.load_id).first()
     if job:
         raise HTTPException(status_code=400, detail="Job with this load_id already exists")
+
+    # 2. Create Job
     new_job = models.Job(
         **data.dict(exclude={"created_at", "updated_at", "created_by", "updated_by"}),
         created_by=current_user.username,
@@ -234,9 +237,25 @@ def create_job(
         updated_at=now,
     )
     db.add(new_job)
+    
+    # 3. Auto create Ticket (เฉพาะ load_id)
+    new_ticket = models.Ticket(load_id=data.load_id)
+    db.add(new_ticket)
+
+    # 4. Auto create Palletdata (เฉพาะ load_id)
+    new_pallet = models.Palletdata(load_id=data.load_id)
+    db.add(new_pallet)
+    
+    # 5. Commit ทุกอย่าง
     db.commit()
     db.refresh(new_job)
-    return {"message": "✅ Job created", "job": model_to_dict(new_job)}
+    # (optionally refresh ticket, palletdata ถ้าต้องการ response กลับ)
+    
+    return {
+        "message": "✅ Job created",
+        "job": model_to_dict(new_job)
+
+    }
 
 @app.put("/jobs")
 def update_job(
@@ -257,7 +276,6 @@ def update_job(
     db.refresh(job)
     return {"message": "✅ Job updated", "job": model_to_dict(job)}
 
-
 @app.delete("/jobs")
 def delete_job(
     load_id: str = Query(...),
@@ -267,9 +285,21 @@ def delete_job(
     job = db.query(models.Job).filter(models.Job.load_id == load_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    
+    # 1. ลบ Ticket
+    ticket = db.query(models.Ticket).filter(models.Ticket.load_id == load_id).first()
+    if ticket:
+        db.delete(ticket)
+
+    # 2. ลบ Palletdata
+    pallet = db.query(models.Palletdata).filter(models.Palletdata.load_id == load_id).first()
+    if pallet:
+        db.delete(pallet)
+
+    # 3. ลบ Job
     db.delete(job)
     db.commit()
-    return {"message": "✅ Job deleted"}
+    return {"message": "✅ Job, Ticket, Palletdata deleted"}
 
 @app.post("/jobs/bulk")
 def create_jobs_bulk(
