@@ -218,7 +218,7 @@ def model_to_dict(obj):
  
 @app.post("/jobs")
 def create_job(
-    data: JobSchema = Body(...),
+    data: JobUpdateSchema = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
