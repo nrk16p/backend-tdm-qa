@@ -138,8 +138,8 @@ class JobUpdateSchemaCreate(BaseModel):
     date_deliver: str
     pallet_type: str
     pallet_plan: int
-    created_by: str
-    created_at: date
+    created_by: Optional[str] = None
+    created_at: Optional[date] = None
 
     # Optional fields
     fuel_type: Optional[str] = None
@@ -156,7 +156,7 @@ class JobUpdateSchemaCreate(BaseModel):
         required_fields = [
              'date_plan', 'h_plate', 't_plate', 'driver_name', 'status',
             'locat_recive', 'date_recive', 'locat_deliver', 'date_deliver',
-            'pallet_type', 'pallet_plan', 'created_by', 'created_at'
+            'pallet_type', 'pallet_plan'
         ]
         for field in required_fields:
             v = getattr(self, field)
