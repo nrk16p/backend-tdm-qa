@@ -241,7 +241,7 @@ def create_job(
 @app.put("/jobs")
 def update_job(
     load_id: str = Query(...),
-    data: JobUpdateSchema = Body(...),
+    data: JobSchema = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
