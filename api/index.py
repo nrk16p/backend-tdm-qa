@@ -82,9 +82,9 @@ def get_jobs(
     h_plate: Optional[List[str]] = Query(None),
     t_plate: Optional[List[str]] = Query(None),
     locat_recive: Optional[List[str]] = Query(None),
-    date_recive: Optional[List[str]] = Query(None),
+    date_recive: Optional[List[str]] = Query(None),  # ถ้า date จริงควรเป็น List[date]
     locat_deliver: Optional[List[str]] = Query(None),
-    date_deliver: Optional[List[str]] = Query(None),
+    date_deliver: Optional[List[str]] = Query(None), # ถ้า date จริงควรเป็น List[date]
     driver_name: Optional[List[str]] = Query(None),
     status: Optional[List[str]] = Query(None),
     date_plan_start: Optional[date] = Query(None),
@@ -96,19 +96,23 @@ def get_jobs(
     if current_user.role != "admin":
         query = query.filter(models.Job.driver_name == current_user.username)
 
-        # เฉพาะ user: filter date_plan เป็นช่วง (หรือ default 7 วัน)
+    # 2. Filter date_plan ทุก role
+    if date_plan_start:
+        query = query.filter(models.Job.date_plan >= date_plan_start)
+    if date_plan_end:
+        query = query.filter(models.Job.date_plan <= date_plan_end)
 
-        if not date_plan_start and not date_plan_end:
-            today_date = date.today()
-            start_date = today_date - timedelta(days=7)
-            end_date = today_date + timedelta(days=7)
-            query = query.filter(
-                models.Job.date_plan >= start_date,
-                models.Job.date_plan <= end_date
-            )
-    # admin เห็นทุก job (ไม่จำกัด date_plan)
+    # 3. User ถ้าไม่ส่ง date filter จะ default 7 วันรอบนี้
+    if current_user.role != "admin" and not date_plan_start and not date_plan_end:
+        today_date = date.today()
+        start_date = today_date - timedelta(days=7)
+        end_date = today_date + timedelta(days=7)
+        query = query.filter(
+            models.Job.date_plan >= start_date,
+            models.Job.date_plan <= end_date
+        )
 
-    # 2. Filter field แบบหลายค่า
+    # 4. Filter field แบบหลายค่า
     if load_id:
         query = query.filter(models.Job.load_id.in_(load_id))
     if h_plate:
@@ -126,16 +130,12 @@ def get_jobs(
     if driver_name:
         query = query.filter(models.Job.driver_name.in_(driver_name))
     if status:
-        # insensitive + trim (strip) filter
         query = query.filter(
             func.lower(func.trim(models.Job.status)).in_(
                 [s.strip().lower() for s in status]
             )
         )
-    if date_plan_start:
-        query = query.filter(models.Job.date_plan >= date_plan_start)
-    if date_plan_end:
-        query = query.filter(models.Job.date_plan <= date_plan_end)
+
     jobs = query.all()
 
     sorted_jobs = sorted(
