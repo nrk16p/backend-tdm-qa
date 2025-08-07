@@ -82,9 +82,9 @@ def get_jobs(
     h_plate: Optional[List[str]] = Query(None),
     t_plate: Optional[List[str]] = Query(None),
     locat_recive: Optional[List[str]] = Query(None),
-    date_recive: Optional[List[str]] = Query(None),  # ถ้า date จริงเปลี่ยนเป็น List[date]
+    date_recive: Optional[List[str]] = Query(None),
     locat_deliver: Optional[List[str]] = Query(None),
-    date_deliver: Optional[List[str]] = Query(None), # ถ้า date จริงเปลี่ยนเป็น List[date]
+    date_deliver: Optional[List[str]] = Query(None),
     driver_name: Optional[List[str]] = Query(None),
     status: Optional[List[str]] = Query(None),
     date_plan_start: Optional[date] = Query(None),
@@ -95,6 +95,21 @@ def get_jobs(
     # 1. Filter ตาม role
     if current_user.role != "admin":
         query = query.filter(models.Job.driver_name == current_user.username)
+
+        # เฉพาะ user: filter date_plan เป็นช่วง (หรือ default 7 วัน)
+        if date_plan_start:
+            query = query.filter(models.Job.date_plan >= date_plan_start)
+        if date_plan_end:
+            query = query.filter(models.Job.date_plan <= date_plan_end)
+        if not date_plan_start and not date_plan_end:
+            today_date = date.today()
+            start_date = today_date - timedelta(days=7)
+            end_date = today_date + timedelta(days=7)
+            query = query.filter(
+                models.Job.date_plan >= start_date,
+                models.Job.date_plan <= end_date
+            )
+    # admin เห็นทุก job (ไม่จำกัด date_plan)
 
     # 2. Filter field แบบหลายค่า
     if load_id:
@@ -121,22 +136,6 @@ def get_jobs(
             )
         )
 
-    # 3. Filter date_plan เป็นช่วง
-    if date_plan_start:
-        query = query.filter(models.Job.date_plan >= date_plan_start)
-    if date_plan_end:
-        query = query.filter(models.Job.date_plan <= date_plan_end)
-
-    # 4. Default ช่วง 7 วันรอบ today ถ้าไม่ได้ส่ง date_plan_start/end
-    if not date_plan_start and not date_plan_end:
-        today_date = date.today()
-        start_date = today_date - timedelta(days=7)
-        end_date = today_date + timedelta(days=7)
-        query = query.filter(
-            models.Job.date_plan >= start_date,
-            models.Job.date_plan <= end_date
-        )
-
     jobs = query.all()
 
     sorted_jobs = sorted(
@@ -151,7 +150,6 @@ def get_jobs(
         "role": current_user.role,
         "jobs": [job.__dict__ for job in sorted_jobs]
     }
-    
 def compute_status(ticket):
     # ให้เช็คตามลำดับล่าสุด -> earliest
     if ticket.complete_datetime:        return "จัดส่งแล้ว (POD)"
