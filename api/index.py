@@ -97,10 +97,7 @@ def get_jobs(
         query = query.filter(models.Job.driver_name == current_user.username)
 
         # เฉพาะ user: filter date_plan เป็นช่วง (หรือ default 7 วัน)
-        if date_plan_start:
-            query = query.filter(models.Job.date_plan >= date_plan_start)
-        if date_plan_end:
-            query = query.filter(models.Job.date_plan <= date_plan_end)
+
         if not date_plan_start and not date_plan_end:
             today_date = date.today()
             start_date = today_date - timedelta(days=7)
@@ -135,7 +132,10 @@ def get_jobs(
                 [s.strip().lower() for s in status]
             )
         )
-
+    if date_plan_start:
+        query = query.filter(models.Job.date_plan >= date_plan_start)
+    if date_plan_end:
+        query = query.filter(models.Job.date_plan <= date_plan_end)
     jobs = query.all()
 
     sorted_jobs = sorted(
