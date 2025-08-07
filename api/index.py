@@ -73,39 +73,85 @@ def get_users(
     return {"users": result}
 
 
-# --- Jobs Endpoint ---
-@app.get("/jobs")
+@router.get("/jobs")
 def get_jobs(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    today_date = date.today()
-    start_date = today_date - timedelta(days=7)
-    end_date = today_date + timedelta(days=7)
+    current_user: models.User = Depends(auth.get_current_user),
 
-    query = db.query(models.Job).filter(
-        models.Job.date_plan >= start_date,
-        models.Job.date_plan <= end_date,
-    )
-    # ถ้าไม่ใช่ admin ให้ filter ตาม driver_name
+    load_id: Optional[List[str]] = Query(None),
+    h_plate: Optional[List[str]] = Query(None),
+    t_plate: Optional[List[str]] = Query(None),
+    locat_recive: Optional[List[str]] = Query(None),
+    date_recive: Optional[List[str]] = Query(None),  # ถ้า date จริงเปลี่ยนเป็น List[date]
+    locat_deliver: Optional[List[str]] = Query(None),
+    date_deliver: Optional[List[str]] = Query(None), # ถ้า date จริงเปลี่ยนเป็น List[date]
+    driver_name: Optional[List[str]] = Query(None),
+    status: Optional[List[str]] = Query(None),
+    date_plan_start: Optional[date] = Query(None),
+    date_plan_end: Optional[date] = Query(None),
+):
+    query = db.query(models.Job)
+
+    # 1. Filter ตาม role
     if current_user.role != "admin":
         query = query.filter(models.Job.driver_name == current_user.username)
+
+    # 2. Filter field แบบหลายค่า
+    if load_id:
+        query = query.filter(models.Job.load_id.in_(load_id))
+    if h_plate:
+        query = query.filter(models.Job.h_plate.in_(h_plate))
+    if t_plate:
+        query = query.filter(models.Job.t_plate.in_(t_plate))
+    if locat_recive:
+        query = query.filter(models.Job.locat_recive.in_(locat_recive))
+    if date_recive:
+        query = query.filter(models.Job.date_recive.in_(date_recive))
+    if locat_deliver:
+        query = query.filter(models.Job.locat_deliver.in_(locat_deliver))
+    if date_deliver:
+        query = query.filter(models.Job.date_deliver.in_(date_deliver))
+    if driver_name:
+        query = query.filter(models.Job.driver_name.in_(driver_name))
+    if status:
+        # insensitive + trim (strip) filter
+        query = query.filter(
+            func.lower(func.trim(models.Job.status)).in_(
+                [s.strip().lower() for s in status]
+            )
+        )
+
+    # 3. Filter date_plan เป็นช่วง
+    if date_plan_start:
+        query = query.filter(models.Job.date_plan >= date_plan_start)
+    if date_plan_end:
+        query = query.filter(models.Job.date_plan <= date_plan_end)
+
+    # 4. Default ช่วง 7 วันรอบ today ถ้าไม่ได้ส่ง date_plan_start/end
+    if not date_plan_start and not date_plan_end:
+        today_date = date.today()
+        start_date = today_date - timedelta(days=7)
+        end_date = today_date + timedelta(days=7)
+        query = query.filter(
+            models.Job.date_plan >= start_date,
+            models.Job.date_plan <= end_date
+        )
 
     jobs = query.all()
 
     sorted_jobs = sorted(
         jobs,
         key=lambda job: (
-            0 if job.date_plan == today_date else 1,
-            -job.date_plan.toordinal()
+            0 if job.date_plan == date.today() else 1,
+            -job.date_plan.toordinal() if job.date_plan else 0
         )
     )
 
     return {
-        "role": current_user.role,            # <<< เพิ่ม role ใน response
+        "role": current_user.role,
         "jobs": [job.__dict__ for job in sorted_jobs]
     }
-
+    
 def compute_status(ticket):
     # ให้เช็คตามลำดับล่าสุด -> earliest
     if ticket.complete_datetime:        return "จัดส่งแล้ว (POD)"
