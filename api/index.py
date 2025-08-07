@@ -73,7 +73,7 @@ def get_users(
     return {"users": result}
 
 
-@router.get("/jobs")
+@app.get("/jobs")
 def get_jobs(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
