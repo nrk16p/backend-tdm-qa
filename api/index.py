@@ -7,10 +7,11 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from . import models, auth, database
 from .database import SessionLocal
-from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut , JobUpdateSchemaCreate
+from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut , JobUpdateSchemaCreate , RegisterRequest
 from fastapi import Header, HTTPException, status
 from datetime import datetime
 from typing import List
+from .auth import hash_password
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -55,6 +56,22 @@ def verify_api_key(x_api_key: str = Header(...)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API Key"
         )
+
+@app.post("/register")
+def register(
+    data: RegisterRequest = Body(...),
+    db: Session = Depends(get_db),
+    x_api_key: str = Depends(verify_api_key)  # <<< ต้องใช้ API KEY ทุกครั้ง
+):
+    # เช็ค duplicate
+    if db.query(models.User).filter(models.User.username == data.username).first():
+        raise HTTPException(status_code=400, detail="Username already exists")
+    # Hash password
+    hashed = hash_password(data.password)
+    user = models.User(username=data.username, hashed_password=hashed, role=data.role)
+    db.add(user)
+    db.commit()
+    return {"message": f"User '{data.username}' registered successfully!"}
 
 @app.get("/user")
 def get_users(

@@ -163,3 +163,8 @@ class JobUpdateSchemaCreate(BaseModel):
             if v is None or (isinstance(v, str) and v.strip() == ""):
                 raise ValueError(f"{field} is required and cannot be empty")
         return self
+    
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    role: str = "user"  # default เป็น user
