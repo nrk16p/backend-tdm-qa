@@ -10,7 +10,10 @@ class User(Base):
     hashed_password = Column("password", String)  # 👈 map จาก column password จริงใน DB
     role = Column(String)
 
-# ── Job Model ────────────────────────────────────────
+
+
+from sqlalchemy.dialects.postgresql import UUID
+
 class Job(Base):
     __tablename__ = "jobdata"
     __table_args__ = {"schema": "fleetdata"}
@@ -33,10 +36,15 @@ class Job(Base):
     pallet_type = Column(String)
     pallet_plan = Column(Integer)
     unload_cost = Column(String)
-    created_by = Column(String(100))     
-    created_at = Column(DateTime)        
-    updated_by = Column(String(100))        
-    updated_at = Column(DateTime)        
+    created_by = Column(String(100))
+    created_at = Column(DateTime)
+    updated_by = Column(String(100))
+    updated_at = Column(DateTime)
+
+    # DB-generated columns (don’t set these on insert)
+    group_key = Column(String)                 # keep if you still have it
+    group_key_uuid = Column(UUID(as_uuid=True), index=True)
+       
     
 class Ticket(Base):
     __tablename__ = "ticketdata"

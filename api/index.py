@@ -180,47 +180,63 @@ def compute_status(ticket):
     if ticket.start_datetime:           return "รับงาน"
     return "พร้อมรับงาน"  
 
-# --- Job Tickets ---
 @app.post("/job-tickets")
 def create_or_update_ticket(
     data: TicketUpdate = Body(...),
+    apply_to_group: bool = Query(True),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    job = db.query(models.Job).filter(models.Job.load_id == data.load_id).first()
-    if not job:
+    anchor = db.query(models.Job).filter(models.Job.load_id == data.load_id).first()
+    if not anchor:
         raise HTTPException(status_code=404, detail="load_id not found in jobdata")
 
-    ticket = db.query(models.Ticket).filter(models.Ticket.load_id == data.load_id).first()
-
-    if ticket:
-        for field, value in data.dict(exclude_unset=True).items():
-            if field != "load_id":
-                setattr(ticket, field, value)
-        db.commit()
-        db.refresh(ticket)
-        # เพิ่มตรงนี้
-        status = compute_status(ticket)
+    if apply_to_group and getattr(anchor, "group_key_uuid", None):
+        group_load_ids = [
+            r[0]
+            for r in db.query(models.Job.load_id)
+                      .filter(models.Job.group_key_uuid == anchor.group_key_uuid)
+                      .all()
+        ]
     else:
-        new_ticket = models.Ticket(**data.dict())
-        db.add(new_ticket)
-        db.commit()
-        db.refresh(new_ticket)
-        # เพิ่มตรงนี้
-        status = compute_status(new_ticket)
+        group_load_ids = [data.load_id]
 
-    # อัปเดต status ใน jobdata ถ้ามี
-    if status:
-        job.status = status
+    update_fields = {k: v for k, v in data.dict(exclude_unset=True).items() if k != "load_id"}
+
+    affected = []
+    try:
+        for lid in group_load_ids:
+            ticket = db.query(models.Ticket).filter(models.Ticket.load_id == lid).first()
+            if ticket:
+                for f, val in update_fields.items():
+                    setattr(ticket, f, val)
+            else:
+                payload = data.dict(exclude_unset=True).copy()
+                payload["load_id"] = lid
+                ticket = models.Ticket(**payload)
+                db.add(ticket)
+
+            db.flush()
+
+            status = compute_status(ticket)
+            job = db.query(models.Job).filter(models.Job.load_id == lid).first()
+            if job and status:
+                job.status = status
+
+            affected.append({"load_id": lid, "status": status})
+
         db.commit()
-        db.refresh(job)
+    except Exception:
+        db.rollback()
+        raise
 
     return {
-        "message": "✅ Ticket updated" if ticket else "✅ Ticket created",
-        "ticket": (ticket or new_ticket).__dict__,
-        "new_status": status  # <<-- เพิ่มตรงนี้ (หรือจะตั้งชื่อ key ว่า "status" ก็ได้)
+        "message": "✅ Tickets updated" if len(affected) > 1 else "✅ Ticket updated",
+        "apply_to_group": apply_to_group,
+        "group_size": len(affected),
+        "affected": affected,
     }
-
+    
 @app.get("/job-tickets")
 def get_job_tickets(
     load_id: Optional[str] = Query(None),
