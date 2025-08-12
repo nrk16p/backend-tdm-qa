@@ -138,8 +138,8 @@ class JobUpdateSchemaCreate(BaseModel):
     status: str
     locat_recive: str
     date_recive:  datetime
-    locat_deliver: str
-    date_deliver: datetime
+    locat_deliver:Optional[str] = None
+    date_deliver: Optional[datetime] = None
     pallet_type: str
     pallet_plan: int
 	
@@ -164,7 +164,7 @@ class JobUpdateSchemaCreate(BaseModel):
     def no_empty_required(self):
         required_fields = [
              'date_plan', 'h_plate', 't_plate', 'driver_name', 'status',
-            'locat_recive', 'date_recive', 'locat_deliver', 'date_deliver',
+            'locat_recive', 'date_recive', 
             'pallet_type', 'pallet_plan'
         ]
         for field in required_fields:
