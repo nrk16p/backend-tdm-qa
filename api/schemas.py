@@ -111,9 +111,9 @@ class JobSchemaPut(BaseModel):
     status: Optional[str] = None
     remark: Optional[str] = None
     locat_recive: Optional[str] = None
-    date_recive: Optional[date] = None
+    date_recive: Optional[datetime] = None
     locat_deliver: Optional[str] = None
-    date_deliver: Optional[date] = None
+    date_deliver: Optional[datetime] = None
     pallet_type: Optional[str] = None
     pallet_plan: Optional[int] = None
     unload_cost: Optional[str] = None
@@ -121,6 +121,10 @@ class JobSchemaPut(BaseModel):
     created_at: Optional[datetime] = None
     updated_by: Optional[str] = None
     updated_at: Optional[datetime] = None
+    job_type:Optional[str] = None
+    roll_trip:Optional[int] = None
+    ldt:Optional[str] = None
+    damage_detail:Optional[str] = None    
 
     class Config:
         orm_mode = True
@@ -133,14 +137,12 @@ class JobUpdateSchemaCreate(BaseModel):
     driver_name: str
     status: str
     locat_recive: str
-    date_recive: str
+    date_recive:  datetime
     locat_deliver: str
-    date_deliver: str
+    date_deliver: datetime
     pallet_type: str
     pallet_plan: int
-    created_by: Optional[str] = None
-    created_at: Optional[date] = None
-
+	
     # Optional fields
     fuel_type: Optional[str] = None
     height: Optional[str] = None
@@ -150,7 +152,14 @@ class JobUpdateSchemaCreate(BaseModel):
     unload_cost: Optional[str] = None
     updated_by: Optional[str] = None
     updated_at: Optional[datetime] = None
-
+    created_by: Optional[str] = None
+    created_at: Optional[date] = None
+    job_type:Optional[str] = None
+    roll_trip:Optional[int] = None
+    ldt:Optional[str] = None
+    damage_detail:Optional[str] = None
+ 
+    
     @model_validator(mode="after")
     def no_empty_required(self):
         required_fields = [

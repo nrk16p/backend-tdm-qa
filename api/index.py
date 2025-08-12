@@ -191,11 +191,11 @@ def create_or_update_ticket(
     if not anchor:
         raise HTTPException(status_code=404, detail="load_id not found in jobdata")
 
-    if apply_to_group and getattr(anchor, "group_key_uuid", None):
+    if apply_to_group and getattr(anchor, "group_key", None):
         group_load_ids = [
             r[0]
             for r in db.query(models.Job.load_id)
-                      .filter(models.Job.group_key_uuid == anchor.group_key_uuid)
+                      .filter(models.Job.group_key == anchor.group_key)
                       .all()
         ]
     else:

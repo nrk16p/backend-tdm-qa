@@ -31,6 +31,8 @@ class Job(Base):
     remark = Column(String)
     locat_recive = Column(String)
     date_recive = Column(Date)
+    newdate_recive = Column(DateTime)
+    newdate_deliver = Column(DateTime)
     locat_deliver = Column(String)
     date_deliver = Column(Date)
     pallet_type = Column(String)
@@ -40,6 +42,10 @@ class Job(Base):
     created_at = Column(DateTime)
     updated_by = Column(String(100))
     updated_at = Column(DateTime)
+    job_type = Column(String)
+    ldt = Column(String)
+    damage_detail = Column(String)
+    roll_trip = Column(Integer)
 
     # DB-generated columns (don’t set these on insert)
     group_key = Column(String)                 # keep if you still have it
