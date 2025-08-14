@@ -125,8 +125,8 @@ def get_jobs(
         start_date = today_date - timedelta(days=7)
         end_date = today_date + timedelta(days=7)
         query = query.filter(
-            models.Job.date_plan >= start_date,
-            models.Job.date_plan <= end_date
+            models.Job.date_recive >= start_date,
+            models.Job.date_recive <= end_date
         )
 
     # 4. Filter field แบบหลายค่า
