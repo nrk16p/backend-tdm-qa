@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from . import models, auth, database
 from .database import SessionLocal
-from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut , JobUpdateSchemaCreate , RegisterRequest
+from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut , JobUpdateSchemaCreate , RegisterRequest , ChangePasswordRequest
 from fastapi import Header, HTTPException, status
 from datetime import datetime
 from typing import List
@@ -72,6 +72,33 @@ def register(
     db.add(user)
     db.commit()
     return {"message": f"User '{data.username}' registered successfully!"}
+
+@app.post("/users/reset-password")
+def change_password(
+    data: ChangePasswordRequest = Body(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    # ตรวจสอบว่า user ที่จะเปลี่ยนเป็นของตัวเอง หรือถ้าเป็น admin เปลี่ยนให้คนอื่นได้
+    if current_user.role != "admin" and current_user.username != data.user:
+        raise HTTPException(status_code=403, detail="Not authorized to change this password")
+
+    # หา user ใน DB
+    user = db.query(models.User).filter(models.User.username == data.user).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # ตรวจสอบ old_password (ถ้าไม่ใช่ admin)
+    if current_user.role != "admin":
+        if not auth.verify_password(data.old_password, user.hashed_password):
+            raise HTTPException(status_code=400, detail="Old password is incorrect")
+
+    # update password ใหม่
+    user.hashed_password = hash_password(data.new_password)
+    db.commit()
+
+    return {"message": f"Password for '{data.user}' changed successfully"}
+
 
 @app.get("/user")
 def get_users(

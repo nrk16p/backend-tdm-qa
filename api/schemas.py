@@ -177,3 +177,10 @@ class RegisterRequest(BaseModel):
     username: str
     password: str
     role: str = "user"  # default เป็น user
+    
+    
+
+class ChangePasswordRequest(BaseModel):
+    user: str
+    old_password: str
+    new_password: str
