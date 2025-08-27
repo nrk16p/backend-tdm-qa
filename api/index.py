@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from . import models, auth, database
 from .database import SessionLocal
-from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut , JobUpdateSchemaCreate , RegisterRequest , ChangePasswordRequest
+from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut , JobUpdateSchemaCreate , RegisterRequest , ChangePasswordRequest , PalletLogRead , LatestPalletLogRead
 from fastapi import Header, HTTPException, status
 from datetime import datetime
 from typing import List
@@ -18,7 +18,7 @@ models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI(
     title="TDM Backend API",
     description="API สำหรับ TDM Fleet Management",
-    version="1.2.1",    # << ใส่ version ที่ต้องการ
+    version="2.2.1",    # << ใส่ version ที่ต้องการ
     contact={
         "name": "Plug",
         "email": "narongkorn.a@menatransport.co.th",
@@ -185,7 +185,13 @@ def get_jobs(
     sorted_jobs = sorted(
         jobs,
         key=lambda job: (
+            # 1. Put jobs with "other statuses" first
+            0 if job.status not in ["พร้อมรับงาน", "จัดส่งแล้ว (POD)"] else 1,
+            
+            # 2. Today’s jobs come before others
             0 if job.date_plan == date.today() else 1,
+            
+            # 3. Sort by date_plan (descending if exists)
             -job.date_plan.toordinal() if job.date_plan else 0
         )
     )
@@ -499,3 +505,138 @@ def create_jobs_bulk(
 
     db.commit()
     return {"results": results}
+
+from typing import List, Optional
+from datetime import datetime
+from sqlalchemy.orm import Session
+from sqlalchemy import and_
+from . import models, auth
+from .schemas import PalletLogCreate, PalletLogOut
+
+@app.post("/palletlogs", response_model=PalletLogOut)
+def create_palletlog(
+    data: PalletLogCreate = Body(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    # 1. Check duplicate (timestamp + driver + plate)
+    exists = db.query(models.PalletLog).filter(
+        models.PalletLog.timestamp == data.timestamp,
+        models.PalletLog.driver_name == data.driver_name,
+        models.PalletLog.t_plate == data.t_plate,
+    ).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="Duplicate palletlog for this key")
+
+    # 2. Get latest palletlog for this t_plate
+    last_log = (
+        db.query(models.PalletLog)
+        .filter(models.PalletLog.t_plate == data.t_plate)
+        .order_by(models.PalletLog.timestamp.desc())
+        .first()
+    )
+
+    # 3. Use last pallet_current (None → 0 if missing)
+    last_current = (last_log.pallet_current or 0) if last_log else 0
+
+    # 4. Calculate new pallet_current
+    if data.pallet_type in ["รับคืน", "ยืมลูกค้า"]:
+        new_current = last_current + data.pallet_qty
+    elif data.pallet_type in ["นำฝาก", "คืนลูกค้า"]:
+        new_current = last_current - data.pallet_qty
+    else:
+        new_current = last_current
+
+    # 5. Create row (exclude pallet_current from request)
+    row = models.PalletLog(
+        **data.dict(exclude={"pallet_current"}),
+        pallet_current=new_current
+    )
+
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    # 6. Return response
+    return PalletLogOut(
+        message="Pallet log created successfully",
+        pallet_current=new_current,
+        last_timestamp=last_log.timestamp if last_log else None
+    )
+
+from typing import List, Optional, Union
+
+@app.get("/palletlogs", response_model=List[PalletLogRead])
+def list_palletlogs(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+
+    # filters
+    start: Optional[datetime] = Query(None, description="timestamp >= start"),
+    end: Optional[datetime] = Query(None, description="timestamp <= end"),
+    driver_name: Optional[Union[List[str], str]] = Query(None),
+    t_plate: Optional[Union[List[str], str]] = Query(None),
+    pallet_type: Optional[Union[List[str], str]] = Query(None),
+    pallet_location: Optional[Union[List[str], str]] = Query(None),
+
+    # pagination
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
+    q = db.query(models.PalletLog)
+
+    # --- role-based filter ---
+    if current_user.role == "user":
+        q = q.filter(models.PalletLog.driver_name == current_user.username)
+
+    # --- normalize filters ---
+    def normalize(val):
+        if not val:
+            return None
+        if isinstance(val, str):
+            return [v.strip() for v in val.split(",") if v.strip()]
+        return [v.strip() for v in val]
+
+    driver_name = normalize(driver_name)
+    t_plate = normalize(t_plate)
+    pallet_type = normalize(pallet_type)
+    pallet_location = normalize(pallet_location)
+
+    # --- apply filters ---
+    if start:
+        q = q.filter(models.PalletLog.timestamp >= start)
+    if end:
+        q = q.filter(models.PalletLog.timestamp <= end)
+    if driver_name:
+        q = q.filter(models.PalletLog.driver_name.in_(driver_name))
+    if t_plate:
+        q = q.filter(models.PalletLog.t_plate.in_(t_plate))
+    if pallet_type:
+        q = q.filter(models.PalletLog.pallet_type.in_(pallet_type))
+    if pallet_location:
+        q = q.filter(models.PalletLog.pallet_location.in_(pallet_location))
+
+    rows = (
+        q.order_by(models.PalletLog.timestamp.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return rows
+
+@app.get("/latest_palletlog", response_model=List[LatestPalletLogRead])
+def get_latest_palletlog(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+    t_plate: Optional[List[str]] = Query(None, description="Filter by truck plate(s)"),
+):
+    q = db.query(models.VLatestPalletLog)
+
+
+
+    # optional filter
+    if t_plate:
+        q = q.filter(models.VLatestPalletLog.t_plate.in_(t_plate))
+
+    rows = q.all()
+    return rows

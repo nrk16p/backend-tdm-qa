@@ -184,3 +184,46 @@ class ChangePasswordRequest(BaseModel):
     user: str
     old_password: str
     new_password: str
+
+
+# ---------- Schemas ----------
+class PalletLogCreate(BaseModel):
+    timestamp: datetime
+    driver_name: str
+    t_plate: str
+    pallet_current: Optional[int] = None
+    pallet_type: str
+    pallet_qty: int
+    pallet_location: str
+    pallet_remark: Optional[str] = None
+
+
+class PalletLogOut(BaseModel):
+    message: str
+    pallet_current: int
+    last_timestamp: Optional[datetime] = None  # 👈 last log timestamp
+
+    class Config:
+        orm_mode = True
+        
+class PalletLogRead(BaseModel):
+    timestamp: datetime
+    driver_name: str
+    t_plate: str
+    pallet_current: Optional[int]
+    pallet_type: str
+    pallet_qty: int
+    pallet_location: str
+    pallet_remark: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+        
+    
+class LatestPalletLogRead(BaseModel):
+    timestamp: datetime
+    t_plate: str
+    pallet_current: Optional[int]
+
+    class Config:
+        orm_mode = True

@@ -30,11 +30,9 @@ class Job(Base):
     status = Column(String)
     remark = Column(String)
     locat_recive = Column(String)
-    date_recive = Column(Date)
-    newdate_recive = Column(DateTime)
-    newdate_deliver = Column(DateTime)
+    date_recive = Column(DateTime)
     locat_deliver = Column(String)
-    date_deliver = Column(Date)
+    date_deliver = Column(DateTime)
     pallet_type = Column(String)
     pallet_plan = Column(Integer)
     unload_cost = Column(String)
@@ -81,3 +79,25 @@ class Palletdata(Base):
     return_customer_pallet = Column(Integer)
     
 
+class PalletLog(Base):
+    __tablename__ = "palletlog"
+    __table_args__ = {"schema": "fleetdata"}
+
+    # composite primary key to make SQLAlchemy happy
+    timestamp = Column(DateTime, primary_key=True, index=True)
+    driver_name = Column(String, primary_key=True, index=True)
+    t_plate = Column(String, primary_key=True, index=True)
+
+    pallet_current = Column(Integer)              # int2 in PG maps fine to Integer
+    pallet_type = Column(String, nullable=False)
+    pallet_qty = Column(Integer, nullable=False)  # int2
+    pallet_location = Column(String, nullable=False)
+    pallet_remark = Column(String)                # nullable
+    
+class VLatestPalletLog(Base):
+    __tablename__ = "v_latest_palletlog"   # your view
+    __table_args__ = {"schema": "fleetdata"}
+
+    timestamp = Column(DateTime)
+    t_plate = Column(String, primary_key=True)   # each t_plate has 1 latest row
+    pallet_current = Column(Integer)
