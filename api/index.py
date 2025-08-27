@@ -540,9 +540,9 @@ def create_palletlog(
     last_current = (last_log.pallet_current or 0) if last_log else 0
 
     # 4. Calculate new pallet_current
-    if data.pallet_type in ["รับคืน", "ยืมลูกค้า"]:
+    if data.pallet_type in ["รับคืน", "ยืมลค."]:
         new_current = last_current + data.pallet_qty
-    elif data.pallet_type in ["นำฝาก", "คืนลูกค้า"]:
+    elif data.pallet_type in ["นำฝาก", "คืนลค."]:
         new_current = last_current - data.pallet_qty
     else:
         new_current = last_current
