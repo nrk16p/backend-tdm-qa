@@ -200,18 +200,37 @@ def get_jobs(
         "role": current_user.role,
         "jobs": [job.__dict__ for job in sorted_jobs]
     }
+ALLOWED_GROUP_FIELDS = {
+    "start_datetime",
+    "origin_datetime",
+    "start_recive_datetime",
+    "end_recive_datetime",
+}
+
+
+
+def _is_group_wide_update(update_fields: dict) -> bool:
+    """
+    เงื่อนไข “อัปเดตทั้งกลุ่ม” = ทุกคีย์ที่อัปเดตต้องอยู่ใน ALLOWED_GROUP_FIELDS
+    และมีอย่างน้อย 1 คีย์
+    """
+    return (
+        len(update_fields) > 0 and
+        all(k in ALLOWED_GROUP_FIELDS for k in update_fields.keys())
+    )
+
 def compute_status(ticket):
-    # ให้เช็คตามลำดับล่าสุด -> earliest
+    # เช็คสถานะจากล่าสุด -> ย้อนหลัง
     if ticket.complete_datetime:        return "จัดส่งแล้ว (POD)"
     if ticket.end_unload_datetime:      return "ลงสินค้าเสร็จ"
     if ticket.start_unload_datetime:    return "เริ่มลงสินค้า"
-    if ticket.desination_datetime:      return "ถึงปลายทาง"
+    if ticket.desination_datetime:      return "ถึงปลายทาง"   # ชื่อฟิลด์สะกดตามโมเดลเดิม
     if ticket.intransit_datetime:       return "เริ่มขนส่ง"
     if ticket.end_recive_datetime:      return "ขึ้นสินค้าเสร็จ"
     if ticket.start_recive_datetime:    return "เริ่มขึ้นสินค้า"
     if ticket.origin_datetime:          return "ถึงต้นทาง"
     if ticket.start_datetime:           return "รับงาน"
-    return "พร้อมรับงาน"  
+    return "พร้อมรับงาน"
 
 @app.post("/job-tickets")
 def create_or_update_ticket(
@@ -224,7 +243,18 @@ def create_or_update_ticket(
     if not anchor:
         raise HTTPException(status_code=404, detail="load_id not found in jobdata")
 
-    if apply_to_group and getattr(anchor, "group_key", None):
+    # สร้าง dict ฟิลด์ที่จะอัปเดต (ไม่รวม load_id) และทำความสะอาดค่าว่าง
+    raw_update_fields = {k: v for k, v in data.dict(exclude_unset=True).items() if k != "load_id"}
+    update_fields = raw_update_fields
+
+    # ตัดสินใจว่าจะอัปเดตทั้งกลุ่มหรือไม่
+    group_mode = (
+        apply_to_group
+        and getattr(anchor, "group_key", None)
+        and _is_group_wide_update(update_fields)
+    )
+
+    if group_mode:
         group_load_ids = [
             r[0]
             for r in db.query(models.Job.load_id)
@@ -234,51 +264,28 @@ def create_or_update_ticket(
     else:
         group_load_ids = [data.load_id]
 
-    update_fields = {k: v for k, v in data.dict(exclude_unset=True).items() if k != "load_id"}
-
     affected = []
     try:
         for lid in group_load_ids:
             ticket = db.query(models.Ticket).filter(models.Ticket.load_id == lid).first()
 
             if ticket:
-                # update ticket normally (all fields except load_id)
                 for f, val in update_fields.items():
                     setattr(ticket, f, val)
             else:
-                payload = data.dict(exclude_unset=True).copy()
-                payload["load_id"] = lid
+                payload = {**update_fields, "load_id": lid}
                 ticket = models.Ticket(**payload)
                 db.add(ticket)
 
-            db.flush()
+            db.flush()  # ให้ ticket ได้ค่าล่าสุดก่อนคำนวณสถานะ
 
-            # --- update Job ---
+            status = compute_status(ticket)
+
             job = db.query(models.Job).filter(models.Job.load_id == lid).first()
-            if job:
-                if apply_to_group:
-                    # only update limited fields when updating a group
-                    allowed_job_fields = [
-                        "start_datetime",
-                        "origin_datetime",
-                        "start_recive_datetime",
-                        "end_recive_datetime",
-                    ]
-                    for f in allowed_job_fields:
-                        if f in update_fields:
-                            setattr(job, f, update_fields[f])
-                else:
-                    # single update: allow all fields
-                    for f, val in update_fields.items():
-                        if hasattr(job, f):
-                            setattr(job, f, val)
+            if job and status:
+                job.status = status
 
-                # keep your status logic
-                status = compute_status(ticket)
-                if status:
-                    job.status = status
-
-            affected.append({"load_id": lid, "status": job.status if job else None})
+            affected.append({"load_id": lid, "status": status})
 
         db.commit()
     except Exception:
@@ -287,7 +294,7 @@ def create_or_update_ticket(
 
     return {
         "message": "✅ Tickets updated" if len(affected) > 1 else "✅ Ticket updated",
-        "apply_to_group": apply_to_group,
+        "apply_to_group": bool(group_mode),
         "group_size": len(affected),
         "affected": affected,
     }
