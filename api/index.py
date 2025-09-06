@@ -240,7 +240,9 @@ def create_or_update_ticket(
     try:
         for lid in group_load_ids:
             ticket = db.query(models.Ticket).filter(models.Ticket.load_id == lid).first()
+
             if ticket:
+                # update ticket normally (all fields except load_id)
                 for f, val in update_fields.items():
                     setattr(ticket, f, val)
             else:
@@ -251,12 +253,32 @@ def create_or_update_ticket(
 
             db.flush()
 
-            status = compute_status(ticket)
+            # --- update Job ---
             job = db.query(models.Job).filter(models.Job.load_id == lid).first()
-            if job and status:
-                job.status = status
+            if job:
+                if apply_to_group:
+                    # only update limited fields when updating a group
+                    allowed_job_fields = [
+                        "start_datetime",
+                        "origin_datetime",
+                        "start_recive_datetime",
+                        "end_recive_datetime",
+                    ]
+                    for f in allowed_job_fields:
+                        if f in update_fields:
+                            setattr(job, f, update_fields[f])
+                else:
+                    # single update: allow all fields
+                    for f, val in update_fields.items():
+                        if hasattr(job, f):
+                            setattr(job, f, val)
 
-            affected.append({"load_id": lid, "status": status})
+                # keep your status logic
+                status = compute_status(ticket)
+                if status:
+                    job.status = status
+
+            affected.append({"load_id": lid, "status": job.status if job else None})
 
         db.commit()
     except Exception:
