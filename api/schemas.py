@@ -14,8 +14,17 @@ class TicketUpdate(BaseModel):
     start_unload_datetime: Optional[str] = None
     end_unload_datetime: Optional[str] = None
     complete_datetime: Optional[str] = None
-
-
+    # Lat/Lng fields
+    start_latlng: Optional[str] = None
+    origin_latlng: Optional[str] = None
+    start_recive_latlng: Optional[str] = None
+    end_recive_latlng: Optional[str] = None
+    intransit_latlng: Optional[str] = None
+    desination_latlng: Optional[str] = None
+    start_unload_latlng: Optional[str] = None
+    end_unload_latlng: Optional[str] = None
+    complete_latlng: Optional[str] = None
+    
 class PalletDataUpdate(BaseModel):
     load_id: str
     tranfer_pallet: Optional[int] = None
@@ -49,6 +58,9 @@ class JobSchema(BaseModel):
     created_at: Optional[datetime] = None
     updated_by: Optional[str] = None
     updated_at: Optional[datetime] = None
+    latlng_recive: Optional[str] = None
+    latlng_deliver: Optional[str] = None
+
 
     class Config:
         orm_mode = True

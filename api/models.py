@@ -44,6 +44,8 @@ class Job(Base):
     ldt = Column(String)
     damage_detail = Column(String)
     roll_trip = Column(Integer)
+    latlng_recive = Column(String)
+    latlng_deliver = Column(String)
 
     # DB-generated columns (don’t set these on insert)
     group_key = Column(String)                 # keep if you still have it
@@ -64,7 +66,15 @@ class Ticket(Base):
     start_unload_datetime = Column(String)
     end_unload_datetime = Column(String)
     complete_datetime = Column(String)
-    
+    start_latlng= Column(String)
+    origin_latlng= Column(String)
+    start_recive_latlng= Column(String)
+    end_recive_latlng= Column(String)
+    intransit_latlng= Column(String)
+    desination_latlng= Column(String)
+    start_unload_latlng= Column(String)
+    end_unload_latlng= Column(String)
+    complete_latlng= Column(String)
 # Palletdata table
 class Palletdata(Base):
     __tablename__ = "palletdata"
