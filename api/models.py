@@ -75,6 +75,9 @@ class Ticket(Base):
     start_unload_latlng= Column(String)
     end_unload_latlng= Column(String)
     complete_latlng= Column(String)
+    docs_submitted_datetime= Column(String)
+    docs_returned_datetime= Column(String)
+    
 # Palletdata table
 class Palletdata(Base):
     __tablename__ = "palletdata"

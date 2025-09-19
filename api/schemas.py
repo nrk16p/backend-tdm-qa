@@ -14,6 +14,9 @@ class TicketUpdate(BaseModel):
     start_unload_datetime: Optional[str] = None
     end_unload_datetime: Optional[str] = None
     complete_datetime: Optional[str] = None
+    docs_submitted_datetime: Optional[str] = None
+    docs_returned_datetime: Optional[str] = None   
+    
     # Lat/Lng fields
     start_latlng: Optional[str] = None
     origin_latlng: Optional[str] = None

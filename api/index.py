@@ -232,6 +232,58 @@ def compute_status(ticket):
     if ticket.start_datetime:           return "รับงาน"
     return "พร้อมรับงาน"
 
+def compute_status_neo(ticket):
+    # เช็คสถานะจากล่าสุด -> ย้อนหลัง
+    if ticket.complete_datetime:        return "จัดส่งแล้ว (POD)"
+    if ticket.docs_returned_datetime:   return "ได้รับเอกสารคืน"
+    if ticket.end_unload_datetime:      return "ลงสินค้าเสร็จ"
+    if ticket.start_unload_datetime:    return "เริ่มลงสินค้า"
+    if ticket.docs_submitted_datetime:  return "ยื่นเอกสาร"
+    if ticket.desination_datetime:      return "ถึงปลายทาง"   # ชื่อฟิลด์สะกดตามโมเดลเดิม
+    if ticket.intransit_datetime:       return "เริ่มขนส่ง"
+    if ticket.end_recive_datetime:      return "ขึ้นสินค้าเสร็จ"
+    if ticket.start_recive_datetime:    return "เริ่มขึ้นสินค้า"
+    if ticket.origin_datetime:          return "ถึงต้นทาง"
+    if ticket.start_datetime:           return "รับงาน"
+    return "พร้อมรับงาน"
+
+def compute_status(ticket):
+    # เช็คสถานะจากล่าสุด -> ย้อนหลัง
+    if ticket.complete_datetime:        return "จัดส่งแล้ว (POD)"
+    if ticket.end_unload_datetime:      return "ลงสินค้าเสร็จ"
+    if ticket.start_unload_datetime:    return "เริ่มลงสินค้า"
+    if ticket.desination_datetime:      return "ถึงปลายทาง"   # ชื่อฟิลด์สะกดตามโมเดลเดิม
+    if ticket.intransit_datetime:       return "เริ่มขนส่ง"
+    if ticket.end_recive_datetime:      return "ขึ้นสินค้าเสร็จ"
+    if ticket.start_recive_datetime:    return "เริ่มขึ้นสินค้า"
+    if ticket.origin_datetime:          return "ถึงต้นทาง"
+    if ticket.start_datetime:           return "รับงาน"
+    return "พร้อมรับงาน"
+
+
+def compute_status_neo(ticket):
+    # เช็คสถานะจากล่าสุด -> ย้อนหลัง
+    if ticket.complete_datetime:        return "จัดส่งแล้ว (POD)"
+    if ticket.docs_returned_datetime:   return "ได้รับเอกสารคืน"
+    if ticket.end_unload_datetime:      return "ลงสินค้าเสร็จ"
+    if ticket.start_unload_datetime:    return "เริ่มลงสินค้า"
+    if ticket.docs_submitted_datetime:  return "ยื่นเอกสาร"
+    if ticket.desination_datetime:      return "ถึงปลายทาง"   # ชื่อฟิลด์สะกดตามโมเดลเดิม
+    if ticket.intransit_datetime:       return "เริ่มขนส่ง"
+    if ticket.end_recive_datetime:      return "ขึ้นสินค้าเสร็จ"
+    if ticket.start_recive_datetime:    return "เริ่มขึ้นสินค้า"
+    if ticket.origin_datetime:          return "ถึงต้นทาง"
+    if ticket.start_datetime:           return "รับงาน"
+    return "พร้อมรับงาน"
+
+
+# 🗺️ Mapping locat_recive → compute function
+STATUS_FUNC_MAP = {
+    "บริษัท นีโอ แฟคทอรี่ จำกัด": compute_status_neo,
+    # สามารถเพิ่ม mapping บริษัทอื่นได้ที่นี่
+}
+
+
 @app.post("/job-tickets")
 def create_or_update_ticket(
     data: TicketUpdate = Body(...),
@@ -244,7 +296,17 @@ def create_or_update_ticket(
         raise HTTPException(status_code=404, detail="load_id not found in jobdata")
 
     # สร้าง dict ฟิลด์ที่จะอัปเดต (ไม่รวม load_id) และทำความสะอาดค่าว่าง
-    raw_update_fields = {k: v for k, v in data.dict(exclude_unset=True).items() if k != "load_id"}
+    def _clean_value(v):
+        # Convert empty string → None
+        if v == "" or v is None:
+            return None
+        return v
+
+    raw_update_fields = {
+        k: _clean_value(v)
+        for k, v in data.dict(exclude_unset=True).items()
+        if k != "load_id"
+    }
     update_fields = raw_update_fields
 
     # ตัดสินใจว่าจะอัปเดตทั้งกลุ่มหรือไม่
@@ -268,6 +330,7 @@ def create_or_update_ticket(
     try:
         for lid in group_load_ids:
             ticket = db.query(models.Ticket).filter(models.Ticket.load_id == lid).first()
+            job = db.query(models.Job).filter(models.Job.load_id == lid).first()
 
             if ticket:
                 for f, val in update_fields.items():
@@ -279,9 +342,14 @@ def create_or_update_ticket(
 
             db.flush()  # ให้ ticket ได้ค่าล่าสุดก่อนคำนวณสถานะ
 
-            status = compute_status(ticket)
+            # --- เลือกฟังก์ชันสถานะตามบริษัท ---
+            if job and job.locat_recive in STATUS_FUNC_MAP:
+                status_func = STATUS_FUNC_MAP[job.locat_recive]
+            else:
+                status_func = compute_status
 
-            job = db.query(models.Job).filter(models.Job.load_id == lid).first()
+            status = status_func(ticket)
+
             if job and status:
                 job.status = status
 
@@ -298,7 +366,6 @@ def create_or_update_ticket(
         "group_size": len(affected),
         "affected": affected,
     }
-    
 @app.get("/job-tickets")
 def get_job_tickets(
     load_id: Optional[str] = Query(None),
