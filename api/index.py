@@ -58,7 +58,7 @@ def login(
         raise HTTPException(status_code=400, detail="Incorrect username or password")
 
     # Generate timestamp at login
-    timestamp_login = datetime.now(timezone.utc)
+    timestamp_login = datetime.now(ZoneInfo("Asia/Bangkok"))
 
     # ✅ Update user record in DB
     user.latlng_current = latlng_current
