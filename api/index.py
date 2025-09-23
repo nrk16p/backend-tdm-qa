@@ -173,6 +173,7 @@ def get_users(
 
     return {"users": result}
 
+
 @app.get("/jobs")
 def get_jobs(
     db: Session = Depends(get_db),
@@ -248,26 +249,45 @@ def get_jobs(
         )
     )
 
-    # === Lookup all drivers in one query to avoid N+1 ===
+    # === Lookup all drivers ===
     driver_names = {job.driver_name for job in sorted_jobs if job.driver_name}
     users = db.query(models.User).filter(models.User.username.in_(driver_names)).all()
     user_map = {u.username: u for u in users}
 
+    # === Lookup all tickets ===
+    load_ids = {job.load_id for job in sorted_jobs if job.load_id}
+    tickets = db.query(models.Ticket).filter(models.Ticket.load_id.in_(load_ids)).all()
+    ticket_map = {t.load_id: t for t in tickets}
+
     job_dicts = []
     for job in sorted_jobs:
-        driver = user_map.get(job.driver_name)
         job_dict = job.__dict__.copy()
 
-        if driver:
-            job_dict["driver_info"] = {
-                "latlng_current": driver.latlng_current,
-                "timestamp_login": (
-                    driver.timestamp_login.astimezone(ZoneInfo("Asia/Bangkok")).isoformat()
-                    if driver.timestamp_login else None
-                )
-            }
-        else:
-            job_dict["driver_info"] = None
+        # Add driver info
+        driver = user_map.get(job.driver_name)
+        job_dict["driver_info"] = {
+            "latlng_current": driver.latlng_current if driver else None,
+            "timestamp_login": (
+                driver.timestamp_login.astimezone(ZoneInfo("Asia/Bangkok")).isoformat()
+                if driver and driver.timestamp_login else None
+            )
+        }
+
+        # Add ticket info
+        ticket = ticket_map.get(job.load_id)
+        job_dict["ticket_info"] = {
+            "start_datetime": ticket.start_datetime if ticket else None,
+            "origin_datetime": ticket.origin_datetime if ticket else None,
+            "start_recive_datetime": ticket.start_recive_datetime if ticket else None,
+            "end_recive_datetime": ticket.end_recive_datetime if ticket else None,
+            "intransit_datetime": ticket.intransit_datetime if ticket else None,
+            "desination_datetime": ticket.desination_datetime if ticket else None,
+            "start_unload_datetime": ticket.start_unload_datetime if ticket else None,
+            "end_unload_datetime": ticket.end_unload_datetime if ticket else None,
+            "complete_datetime": ticket.complete_datetime if ticket else None,
+            "docs_submitted_datetime": ticket.docs_submitted_datetime if ticket else None,
+            "docs_returned_datetime": ticket.docs_returned_datetime if ticket else None,
+        }
 
         job_dicts.append(job_dict)
 
@@ -275,8 +295,6 @@ def get_jobs(
         "role": current_user.role,
         "jobs": job_dicts,
     }
-    
-    
     
 ALLOWED_GROUP_FIELDS = {
     "start_datetime",
