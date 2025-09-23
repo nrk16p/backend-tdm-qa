@@ -134,19 +134,25 @@ def change_password(
 @app.get("/user")
 def get_users(
     db: Session = Depends(get_db),
-        api_key: str = Depends(verify_api_key),   
-
+    api_key: str = Depends(verify_api_key),
 ):
     users = db.query(models.User).filter(models.User.role == "user").all()
-    result = [
-        {
+    result = []
+    for user in users:
+        ts = user.timestamp_login
+        if ts:
+            # Convert from UTC to Bangkok timezone
+            ts = ts.astimezone(ZoneInfo("Asia/Bangkok"))
+            ts = ts.isoformat()  # format to string with +07:00
+        else:
+            ts = None
+
+        result.append({
             "username": user.username,
             "role": user.role,
-            "latlng_current" : user.latlng_current,
-            "timestamp_login": user.timestamp_login
-        }
-        for user in users
-    ]
+            "latlng_current": user.latlng_current,
+            "timestamp_login": ts
+        })
     return {"users": result}
 
 
