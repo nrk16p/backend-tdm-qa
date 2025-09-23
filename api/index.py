@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from . import models, auth, database
 from .database import SessionLocal
-from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut , JobUpdateSchemaCreate , RegisterRequest , ChangePasswordRequest , PalletLogRead , LatestPalletLogRead
+from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut , JobUpdateSchemaCreate , RegisterRequest , ChangePasswordRequest , PalletLogRead , LatestPalletLogRead , UserSchema
 from fastapi import Header, HTTPException, status
 from datetime import datetime
 from typing import List
@@ -130,25 +130,46 @@ def change_password(
 
     return {"message": f"Password for '{data.user}' changed successfully"}
 
+from zoneinfo import ZoneInfo
+from datetime import datetime
 
 @app.get("/user")
 def get_users(
     db: Session = Depends(get_db),
-        api_key: str = Depends(verify_api_key),   
-
+    api_key: str = Depends(verify_api_key),
 ):
     users = db.query(models.User).filter(models.User.role == "user").all()
-    result = [
-        {
-            "username": user.username,
-            "role": user.role,
-            "latlng_current" : user.latlng_current,
-            "timestamp_login": user.timestamp_login
-        }
-        for user in users
-    ]
-    return {"users": result}
+    result = []
 
+    for user in users:
+        ts = user.timestamp_login
+        if ts:
+            if ts.tzinfo is None:
+                # ✅ Interpret naive DB timestamp as Asia/Bangkok (not UTC)
+                ts_bkk = datetime(
+                    ts.year, ts.month, ts.day,
+                    ts.hour, ts.minute, ts.second, ts.microsecond,
+                    tzinfo=ZoneInfo("Asia/Bangkok")
+                )
+            else:
+                # If already tz-aware, convert properly
+                ts_bkk = ts.astimezone(ZoneInfo("Asia/Bangkok"))
+
+            result.append({
+                "username": user.username,
+                "role": user.role,
+                "latlng_current": user.latlng_current,
+                "timestamp_login": ts_bkk.isoformat()  # Bangkok tz
+            })
+        else:
+            result.append({
+                "username": user.username,
+                "role": user.role,
+                "latlng_current": user.latlng_current,
+                "timestamp_login": None
+            })
+
+    return {"users": result}
 
 @app.get("/jobs")
 def get_jobs(

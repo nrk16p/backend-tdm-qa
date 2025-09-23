@@ -16,7 +16,6 @@ class TicketUpdate(BaseModel):
     complete_datetime: Optional[str] = None
     docs_submitted_datetime: Optional[str] = None
     docs_returned_datetime: Optional[str] = None   
-    
     # Lat/Lng fields
     start_latlng: Optional[str] = None
     origin_latlng: Optional[str] = None
@@ -242,3 +241,12 @@ class LatestPalletLogRead(BaseModel):
 
     class Config:
         orm_mode = True
+        
+class UserSchema(BaseModel):
+    username: str
+    role: str
+    latlng_current: str | None = None
+    timestamp_login: datetime | None = None
+
+    class Config:
+        from_attributes = True   # ✅ instead of orm_mode
