@@ -1,14 +1,17 @@
 from sqlalchemy import Column, String, Integer, Date, DateTime
 from .database import Base
 
-# ── User Model ───────────────────────────────────────
 class User(Base):
     __tablename__ = "userdata"
-    __table_args__ = {'schema': 'fleetdata'}  # 👈 ระบุ schema ชัดเจน
+    __table_args__ = {'schema': 'fleetdata'}  # 👈 schema
 
     username = Column(String, primary_key=True, index=True)
-    hashed_password = Column("password", String)  # 👈 map จาก column password จริงใน DB
+    hashed_password = Column("password", String)  # map DB column
     role = Column(String)
+
+    # New fields for tracking login
+    latlng_current = Column(String, nullable=True)
+    timestamp_login = Column(DateTime(timezone=True), nullable=True)
 
 
 

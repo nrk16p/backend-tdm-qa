@@ -12,6 +12,7 @@ from fastapi import Header, HTTPException, status
 from datetime import datetime
 from typing import List
 from .auth import hash_password
+from datetime import datetime, timezone
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -37,19 +38,8 @@ def get_db():
         db.close()
 
 # --- Login ---
-@app.post("/login")
-def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
-):
-    user = auth.authenticate_user(db, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-
-    access_token = auth.create_access_token(data={"sub": user.username, "role": user.role})
-    return {"access_token": access_token, "token_type": "bearer","role": user.role}
-
 API_SECRET_KEY = "=E=QY]!{PjD53Mq"
+
 def verify_api_key(x_api_key: str = Header(...)):
     if x_api_key != API_SECRET_KEY:
         raise HTTPException(
@@ -57,6 +47,46 @@ def verify_api_key(x_api_key: str = Header(...)):
             detail="Invalid or missing API Key"
         )
 
+@app.post("/login")
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+    latlng_current: str | None = Header(default=None)  # optional header
+):
+    user = auth.authenticate_user(db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+
+    # Generate timestamp at login
+    timestamp_login = datetime.now(timezone.utc)
+
+    # ✅ Update user record in DB
+    user.latlng_current = latlng_current
+    user.timestamp_login = timestamp_login
+    db.add(user)
+    db.commit()
+    db.refresh(user)  # make sure updated fields are available in this session
+
+    # Token payload
+    token_data = {
+        "sub": user.username,
+        "role": user.role,
+        "timestamp_login": timestamp_login.isoformat()
+    }
+    if latlng_current:
+        token_data["latlng_current"] = latlng_current
+
+    # Create JWT
+    access_token = auth.create_access_token(data=token_data)
+
+    # Response
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": user.role,
+        "latlng_current": latlng_current,
+        "timestamp_login": timestamp_login.isoformat()
+    }
 @app.post("/register")
 def register(
     data: RegisterRequest = Body(...),
@@ -111,6 +141,8 @@ def get_users(
         {
             "username": user.username,
             "role": user.role,
+            "latlng_current" : user.latlng_current,
+            "timestamp_login": user.timestamp_login
         }
         for user in users
     ]
