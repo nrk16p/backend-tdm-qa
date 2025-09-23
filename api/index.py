@@ -166,6 +166,8 @@ def get_users(
                 "username": user.username,
                 "role": user.role,
                 "latlng_current": user.latlng_current,
+                "timestamp_login": user.timestamp_login,
+
                 "timestamp_login": None
             })
 
@@ -180,9 +182,9 @@ def get_jobs(
     h_plate: Optional[List[str]] = Query(None),
     t_plate: Optional[List[str]] = Query(None),
     locat_recive: Optional[List[str]] = Query(None),
-    date_recive: Optional[List[str]] = Query(None),  # ถ้า date จริงควรเป็น List[date]
+    date_recive: Optional[List[str]] = Query(None),
     locat_deliver: Optional[List[str]] = Query(None),
-    date_deliver: Optional[List[str]] = Query(None), # ถ้า date จริงควรเป็น List[date]
+    date_deliver: Optional[List[str]] = Query(None),
     driver_name: Optional[List[str]] = Query(None),
     status: Optional[List[str]] = Query(None),
     date_plan_start: Optional[date] = Query(None),
@@ -190,17 +192,17 @@ def get_jobs(
 ):
     query = db.query(models.Job)
 
-    # 1. Filter ตาม role
+    # === 1. Filter by role ===
     if current_user.role != "admin":
         query = query.filter(models.Job.driver_name == current_user.username)
 
-    # 2. Filter date_plan ทุก role
+    # === 2. Filter date_plan ===
     if date_plan_start:
         query = query.filter(models.Job.date_plan >= date_plan_start)
     if date_plan_end:
         query = query.filter(models.Job.date_plan <= date_plan_end)
 
-    # 3. User ถ้าไม่ส่ง date filter จะ default 7 วันรอบนี้
+    # === 3. Default 7-day window for non-admins ===
     if current_user.role != "admin" and not date_plan_start and not date_plan_end:
         today_date = date.today()
         start_date = today_date - timedelta(days=7)
@@ -210,7 +212,7 @@ def get_jobs(
             models.Job.date_recive <= end_date
         )
 
-    # 4. Filter field แบบหลายค่า
+    # === 4. Field filters ===
     if load_id:
         query = query.filter(models.Job.load_id.in_(load_id))
     if h_plate:
@@ -236,24 +238,46 @@ def get_jobs(
 
     jobs = query.all()
 
+    # === Sorting ===
     sorted_jobs = sorted(
         jobs,
         key=lambda job: (
-            # 1. Put jobs with "other statuses" first
             0 if job.status not in ["พร้อมรับงาน", "จัดส่งแล้ว (POD)"] else 1,
-            
-            # 2. Today’s jobs come before others
             0 if job.date_plan == date.today() else 1,
-            
-            # 3. Sort by date_plan (descending if exists)
             -job.date_plan.toordinal() if job.date_plan else 0
         )
     )
 
+    # === Lookup all drivers in one query to avoid N+1 ===
+    driver_names = {job.driver_name for job in sorted_jobs if job.driver_name}
+    users = db.query(models.User).filter(models.User.username.in_(driver_names)).all()
+    user_map = {u.username: u for u in users}
+
+    job_dicts = []
+    for job in sorted_jobs:
+        driver = user_map.get(job.driver_name)
+        job_dict = job.__dict__.copy()
+
+        if driver:
+            job_dict["driver_info"] = {
+                "latlng_current": driver.latlng_current,
+                "timestamp_login": (
+                    driver.timestamp_login.astimezone(ZoneInfo("Asia/Bangkok")).isoformat()
+                    if driver.timestamp_login else None
+                )
+            }
+        else:
+            job_dict["driver_info"] = None
+
+        job_dicts.append(job_dict)
+
     return {
         "role": current_user.role,
-        "jobs": [job.__dict__ for job in sorted_jobs]
+        "jobs": job_dicts,
     }
+    
+    
+    
 ALLOWED_GROUP_FIELDS = {
     "start_datetime",
     "origin_datetime",
