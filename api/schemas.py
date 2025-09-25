@@ -172,7 +172,8 @@ class JobUpdateSchemaCreate(BaseModel):
     roll_trip:Optional[int] = None
     ldt:Optional[str] = None
     damage_detail:Optional[str] = None
- 
+    latlng_recive: Optional[str] = None
+    latlng_deliver: Optional[str] = None
     
     @model_validator(mode="after")
     def no_empty_required(self):
