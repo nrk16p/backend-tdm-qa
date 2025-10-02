@@ -1,4 +1,4 @@
-#update 
+#update 2
 fastapi
 uvicorn[standard]
 sqlalchemy
