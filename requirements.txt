@@ -3,10 +3,11 @@ uvicorn[standard]
 sqlalchemy
 python-dotenv
 psycopg2-binary
-passlib[bcrypt]
+passlib
 python-jose[cryptography]
 email-validator
 mangum
 fastapi
 uvicorn
 python-multipart
+argon2-cffi
