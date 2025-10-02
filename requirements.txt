@@ -4,7 +4,7 @@ uvicorn[standard]
 sqlalchemy
 python-dotenv
 psycopg2-binary
-passlib
+passlib[bcrypt]
 python-jose[cryptography]
 email-validator
 mangum
