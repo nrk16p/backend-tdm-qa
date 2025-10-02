@@ -1,3 +1,4 @@
+#update 
 fastapi
 uvicorn[standard]
 sqlalchemy
@@ -11,3 +12,4 @@ fastapi
 uvicorn
 python-multipart
 argon2-cffi
+PyJWT
