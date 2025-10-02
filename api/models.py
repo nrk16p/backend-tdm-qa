@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Date, DateTime
+from sqlalchemy import Column, String, Integer, Date, DateTime , TIMESTAMP , Interval,Text
 from .database import Base
 
 class User(Base):
@@ -49,7 +49,9 @@ class Job(Base):
     roll_trip = Column(Integer)
     latlng_recive = Column(String)
     latlng_deliver = Column(String)
-
+    reason_kpi_origin = Column(String)
+    reason_kpi_destination = Column(String)
+    
     # DB-generated columns (don’t set these on insert)
     group_key = Column(String)                 # keep if you still have it
     group_key_uuid = Column(UUID(as_uuid=True), index=True)
@@ -80,7 +82,9 @@ class Ticket(Base):
     complete_latlng= Column(String)
     docs_submitted_datetime= Column(String)
     docs_returned_datetime= Column(String)
-    
+    docs_submitted_latlng= Column(String)
+    docs_returned_latlng= Column(String)  
+      
 # Palletdata table
 class Palletdata(Base):
     __tablename__ = "palletdata"
@@ -117,3 +121,15 @@ class VLatestPalletLog(Base):
     timestamp = Column(DateTime)
     t_plate = Column(String, primary_key=True)   # each t_plate has 1 latest row
     pallet_current = Column(Integer)
+    
+class DWJobData(Base):
+    __tablename__ = "dw_jobdata"     # ใช้ชื่อ view
+    __table_args__ = {"schema": "fleetdata"}  # ถ้าอยู่ใน schema
+
+    load_id = Column(String, primary_key=True)   # ต้องมี PK (เลือก column ที่ unique)
+
+    client_kpi_origin = Column(Text)
+    client_kpi_destination = Column(Text)
+
+    minute_dif_origin = Column(Interval)
+    minute_dif_destination = Column(Interval)

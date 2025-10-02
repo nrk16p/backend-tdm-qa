@@ -258,7 +258,11 @@ def get_jobs(
     load_ids = {job.load_id for job in sorted_jobs if job.load_id}
     tickets = db.query(models.Ticket).filter(models.Ticket.load_id.in_(load_ids)).all()
     ticket_map = {t.load_id: t for t in tickets}
-
+    
+    # === Lookup all dw_jobdata ===
+    dw_jobs = db.query(models.DWJobData).filter(models.DWJobData.load_id.in_(load_ids)).all()
+    dw_map = {d.load_id: d for d in dw_jobs}
+    
     job_dicts = []
     for job in sorted_jobs:
         job_dict = job.__dict__.copy()
@@ -287,8 +291,28 @@ def get_jobs(
             "complete_datetime": ticket.complete_datetime if ticket else None,
             "docs_submitted_datetime": ticket.docs_submitted_datetime if ticket else None,
             "docs_returned_datetime": ticket.docs_returned_datetime if ticket else None,
-        }
 
+            # ---- latlng fields ----
+            "start_latlng": ticket.start_latlng if ticket else None,
+            "origin_latlng": ticket.origin_latlng if ticket else None,
+            "start_recive_latlng": ticket.start_recive_latlng if ticket else None,
+            "end_recive_latlng": ticket.end_recive_latlng if ticket else None,
+            "intransit_latlng": ticket.intransit_latlng if ticket else None,
+            "desination_latlng": ticket.desination_latlng if ticket else None,
+            "start_unload_latlng": ticket.start_unload_latlng if ticket else None,
+            "end_unload_latlng": ticket.end_unload_latlng if ticket else None,
+            "complete_latlng": ticket.complete_latlng if ticket else None,
+            "docs_submitted_latlng": ticket.docs_submitted_latlng if ticket else None,
+            "docs_returned_latlng": ticket.docs_returned_latlng if ticket else None,
+        }
+        # DWJobData info
+        dw = dw_map.get(job.load_id)
+        job_dict["dw_jobdata_info"] = {
+
+            "client_kpi_origin": dw.client_kpi_origin if dw else None,
+            "client_kpi_destination": dw.client_kpi_destination if dw else None,
+
+        }
         job_dicts.append(job_dict)
 
     return {

@@ -174,6 +174,8 @@ class JobUpdateSchemaCreate(BaseModel):
     damage_detail:Optional[str] = None
     latlng_recive: Optional[str] = None
     latlng_deliver: Optional[str] = None
+    reason_kpi_origin: Optional[str] = None
+    reason_kpi_destination: Optional[str] = None
     
     @model_validator(mode="after")
     def no_empty_required(self):
