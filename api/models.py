@@ -6,7 +6,7 @@ class User(Base):
     __table_args__ = {'schema': 'fleetdata'}  # 👈 schema
 
     username = Column(String, primary_key=True, index=True)
-    hashed_password = Column("password", String)  # map DB column
+    hashed_password = Column("hashed_password_argon2", String)  # map DB column
     role = Column(String)
 
     # New fields for tracking login
