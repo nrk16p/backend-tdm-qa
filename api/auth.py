@@ -7,15 +7,12 @@ from sqlalchemy.orm import Session
 from .models import User
 from .database import SessionLocal
 
-import os
-from dotenv import load_dotenv
+SECRET_KEY = "mysecretkey"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30000
 
-# โหลด .env
-load_dotenv()
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 def get_db():
     db = SessionLocal()
@@ -24,15 +21,14 @@ def get_db():
     finally:
         db.close()
 
-def _pre_hash(password: str) -> str:
-    # แปลงเป็น SHA256 ก่อน เพื่อไม่ติด 72 byte limit
+def prehash(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(_pre_hash(password))
+    return pwd_context.hash(prehash(password))
 
-def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(_pre_hash(plain), hashed)
+def verify_password(password: str, hashed: str) -> bool:
+    return pwd_context.verify(prehash(password), hashed)
 
 def authenticate_user(db: Session, username: str, password: str):
     user = db.query(User).filter(User.username == username).first()
