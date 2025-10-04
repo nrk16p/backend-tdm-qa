@@ -87,7 +87,6 @@ class JobUpdateSchema(BaseModel):
     pallet_type: str
     pallet_plan: int
     created_by: str
-    created_at: date
 
     # Optional fields
     fuel_type: Optional[str] = None
@@ -97,6 +96,7 @@ class JobUpdateSchema(BaseModel):
     remark: Optional[str] = None
     unload_cost: Optional[str] = None
     updated_by: Optional[str] = None
+    created_at: date
     updated_at: Optional[datetime] = None
 
     @model_validator(mode="after")
@@ -192,7 +192,7 @@ class JobUpdateSchemaCreate(BaseModel):
     
 class RegisterRequest(BaseModel):
     username: str
-    password: str
+    hashed_password_argon2: str
     role: str = "user"  # default เป็น user
     
     
