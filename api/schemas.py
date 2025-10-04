@@ -192,7 +192,7 @@ class JobUpdateSchemaCreate(BaseModel):
     
 class RegisterRequest(BaseModel):
     username: str
-    hashed_password_argon2: str
+    password: str = Field(..., alias="hashed_password_argon2")
     role: str = "user"  # default เป็น user
     
     
