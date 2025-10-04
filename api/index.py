@@ -14,6 +14,7 @@ from typing import List
 from .auth import hash_password
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+import hashlib
 
 models.Base.metadata.create_all(bind=database.engine)
 
