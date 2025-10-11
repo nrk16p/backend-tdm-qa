@@ -330,7 +330,7 @@ def get_jobs(
             "gps_id": vehicle.gps_id if vehicle else None,
             "current_latlng": vehicle.current_latlng if vehicle else None,
             "gps_updated_at": (
-                vehicle.gps_updated_at.astimezone(ZoneInfo("Asia/Bangkok")).isoformat()
+                vehicle.gps_updated_at.isoformat()
                 if vehicle and vehicle.gps_updated_at else None
             ),
         }
