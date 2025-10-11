@@ -1,5 +1,8 @@
 from sqlalchemy import Column, String, Integer, Date, DateTime , TIMESTAMP , Interval,Text
 from .database import Base
+from sqlalchemy.dialects.postgresql import TIMESTAMP as PG_TIMESTAMP
+from sqlalchemy.sql import func
+
 
 class User(Base):
     __tablename__ = "userdata"
@@ -133,3 +136,17 @@ class DWJobData(Base):
 
     minute_dif_origin = Column(Interval)
     minute_dif_destination = Column(Interval)
+    
+
+
+class VehicleCurrentData(Base):
+    __tablename__ = "vehicle_curent_data"
+    __table_args__ = {"schema": "fleetdata"}
+
+    plate_master = Column(String, primary_key=True, index=True)
+    plate_type = Column(String)
+    gps_vendor = Column(String)
+    current_latlng = Column(String)
+    updated_at = Column(PG_TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
+    gps_updated_at = Column(TIMESTAMP)
+    gps_id = Column(String)

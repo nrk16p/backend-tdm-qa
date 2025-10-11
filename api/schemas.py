@@ -254,3 +254,21 @@ class UserSchema(BaseModel):
 
     class Config:
         from_attributes = True   # ✅ instead of orm_mode
+        
+
+class VehicleCurrentDataBase(BaseModel):
+    plate_master: str
+    plate_type: Optional[str] = None
+    gps_vendor: Optional[str] = None
+    current_latlng: Optional[str] = None
+    gps_updated_at: Optional[datetime] = None
+    gps_id: Optional[str] = None
+
+class VehicleCurrentDataCreate(VehicleCurrentDataBase):
+    pass
+
+class VehicleCurrentDataOut(VehicleCurrentDataBase):
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True

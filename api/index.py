@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from . import models, auth, database
 from .database import SessionLocal
-from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut , JobUpdateSchemaCreate , RegisterRequest , ChangePasswordRequest , PalletLogRead , LatestPalletLogRead , UserSchema
+from .schemas import TicketUpdate , PalletDataUpdate , JobSchema , JobUpdateSchema , JobSchemaPut , JobUpdateSchemaCreate , RegisterRequest , ChangePasswordRequest , PalletLogRead , LatestPalletLogRead , UserSchema , VehicleCurrentDataOut , VehicleCurrentDataCreate
 from fastapi import Header, HTTPException, status
 from datetime import datetime
 from typing import List
@@ -264,6 +264,14 @@ def get_jobs(
     dw_jobs = db.query(models.DWJobData).filter(models.DWJobData.load_id.in_(load_ids)).all()
     dw_map = {d.load_id: d for d in dw_jobs}
     
+    h_plates = {job.h_plate for job in sorted_jobs if job.h_plate}
+    vehicles = (
+        db.query(models.VehicleCurrentData)
+        .filter(models.VehicleCurrentData.plate_master.in_(h_plates))
+        .all()
+    )
+    vehicle_map = {v.plate_master: v for v in vehicles}
+    
     job_dicts = []
     for job in sorted_jobs:
         job_dict = job.__dict__.copy()
@@ -313,6 +321,18 @@ def get_jobs(
             "client_kpi_origin": dw.client_kpi_origin if dw else None,
             "client_kpi_destination": dw.client_kpi_destination if dw else None,
 
+        }
+        
+            # ---- Vehicle Info (NEW) ----
+        vehicle = vehicle_map.get(job.h_plate)
+        job_dict["vehicle_info"] = {
+            "gps_vendor": vehicle.gps_vendor if vehicle else None,
+            "gps_id": vehicle.gps_id if vehicle else None,
+            "current_latlng": vehicle.current_latlng if vehicle else None,
+            "gps_updated_at": (
+                vehicle.gps_updated_at.astimezone(ZoneInfo("Asia/Bangkok")).isoformat()
+                if vehicle and vehicle.gps_updated_at else None
+            ),
         }
         job_dicts.append(job_dict)
 
@@ -857,3 +877,58 @@ def get_latest_palletlog(
 
     rows = q.all()
     return rows
+
+
+@app.post("/gpsdata", response_model=List[VehicleCurrentDataCreate])
+def upsert_vehicle_data(
+    data_list: List[VehicleCurrentDataCreate] = Body(...),
+    db: Session = Depends(get_db),
+):
+    """
+    ✅ Always bulk UPSERT for Vehicle Current Data
+    - Accepts multiple records in one POST
+    - If gps_vendor = 'dtc' → match gps_id
+    - If gps_vendor = 'thaitracking' → match plate_master
+    - Updates if exists, inserts if new
+    """
+    results = []
+    inserted, updated = 0, 0
+
+    for data in data_list:
+        # 1️⃣ Determine lookup field
+        if data.gps_vendor == "dtc":
+            lookup_field = models.VehicleCurrentData.gps_id
+            lookup_value = data.gps_id
+        elif data.gps_vendor == "thaitracking":
+            lookup_field = models.VehicleCurrentData.plate_master
+            lookup_value = data.plate_master
+        else:
+            print(f"⚠️ Skipping unknown vendor: {data.gps_vendor}")
+            continue
+
+        # 2️⃣ Find existing record
+        record = db.query(models.VehicleCurrentData).filter(lookup_field == lookup_value).first()
+
+        # 3️⃣ Update or Insert
+        if record:
+            for key, value in data.dict(exclude_unset=True).items():
+                setattr(record, key, value)
+            record.updated_at = datetime.utcnow()
+            updated += 1
+        else:
+            record = models.VehicleCurrentData(
+                **data.dict(),
+                updated_at=datetime.utcnow(),
+            )
+            db.add(record)
+            inserted += 1
+
+        results.append(record)
+
+    # 4️⃣ Commit once for performance
+    db.commit()
+    for r in results:
+        db.refresh(r)
+
+    print(f"✅ Vehicle upsert complete → Inserted: {inserted}, Updated: {updated}, Total: {len(results)}")
+    return results
