@@ -139,7 +139,8 @@ class JobSchemaPut(BaseModel):
     roll_trip:Optional[int] = None
     ldt:Optional[str] = None
     damage_detail:Optional[str] = None    
-
+    reason_kpi_origin: Optional[str] = None
+    reason_kpi_destination: Optional[str] = None
     class Config:
         orm_mode = True
         
