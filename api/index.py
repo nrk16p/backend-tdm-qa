@@ -633,7 +633,7 @@ def create_job(
         "load_id": load_id
     }
 
-@router.put("/jobs")
+@app.put("/jobs")
 def update_jobs(
     data_list: List[JobSchemaPut] = Body(...),
     db: Session = Depends(get_db),
