@@ -21,7 +21,7 @@ models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI(
     title="TDM Backend API",
     description="API สำหรับ TDM Fleet Management",
-    version="2.2.2",    # << ใส่ version ที่ต้องการ
+    version="2.2.3",    # << ใส่ version ที่ต้องการ
     contact={
         "name": "Plug",
         "email": "narongkorn.a@menatransport.co.th",
@@ -639,12 +639,15 @@ def update_jobs(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
+    """
+    🔁 Update multiple jobs in a single request.
+    Each item must include `load_id`.
+    """
     now = datetime.now()
     updated_jobs = []
     not_found = []
 
     for data in data_list:
-        # make sure load_id is included in schema
         load_id = data.load_id
         job = db.query(models.Job).filter(models.Job.load_id == load_id).first()
 
@@ -652,7 +655,6 @@ def update_jobs(
             not_found.append(load_id)
             continue
 
-        # update only fields that were provided
         for field, value in data.dict(exclude_unset=True).items():
             setattr(job, field, value)
 
@@ -662,15 +664,14 @@ def update_jobs(
 
     db.commit()
 
-    # refresh all updated jobs
     for job in updated_jobs:
         db.refresh(job)
 
-    return JSONResponse(content={
-        "message": f"✅ Updated {len(updated_jobs)} jobs successfully",
+    return {
+        "message": f"✅ Updated {len(updated_jobs)} job(s) successfully",
         "updated_jobs": [model_to_dict(j) for j in updated_jobs],
         "not_found": not_found
-    })
+    }
 
 @app.delete("/jobs")
 def delete_job(
