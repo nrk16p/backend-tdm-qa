@@ -633,24 +633,44 @@ def create_job(
         "load_id": load_id
     }
 
-@app.put("/jobs")
-def update_job(
-    load_id: str = Query(...),
-    data: JobSchemaPut = Body(...),
+@router.put("/jobs")
+def update_jobs(
+    data_list: List[JobSchemaPut] = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
     now = datetime.now()
-    job = db.query(models.Job).filter(models.Job.load_id == load_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    for field, value in data.dict(exclude_unset=True).items():
-        setattr(job, field, value)
-    job.updated_at = now
-    job.updated_by = current_user.username
+    updated_jobs = []
+    not_found = []
+
+    for data in data_list:
+        # make sure load_id is included in schema
+        load_id = data.load_id
+        job = db.query(models.Job).filter(models.Job.load_id == load_id).first()
+
+        if not job:
+            not_found.append(load_id)
+            continue
+
+        # update only fields that were provided
+        for field, value in data.dict(exclude_unset=True).items():
+            setattr(job, field, value)
+
+        job.updated_at = now
+        job.updated_by = current_user.username
+        updated_jobs.append(job)
+
     db.commit()
-    db.refresh(job)
-    return {"message": "✅ Job updated", "job": model_to_dict(job)}
+
+    # refresh all updated jobs
+    for job in updated_jobs:
+        db.refresh(job)
+
+    return JSONResponse(content={
+        "message": f"✅ Updated {len(updated_jobs)} jobs successfully",
+        "updated_jobs": [model_to_dict(j) for j in updated_jobs],
+        "not_found": not_found
+    })
 
 @app.delete("/jobs")
 def delete_job(
