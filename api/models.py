@@ -150,3 +150,4 @@ class VehicleCurrentData(Base):
     updated_at = Column(PG_TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
     gps_updated_at = Column(TIMESTAMP)
     gps_id = Column(String)
+    status = Column(String)

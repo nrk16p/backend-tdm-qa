@@ -264,6 +264,7 @@ class VehicleCurrentDataBase(BaseModel):
     current_latlng: Optional[str] = None
     gps_updated_at: Optional[datetime] = None
     gps_id: Optional[str] = None
+    status: Optional[str] = None
 
 class VehicleCurrentDataCreate(VehicleCurrentDataBase):
     pass
