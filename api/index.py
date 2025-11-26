@@ -21,7 +21,7 @@ models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI(
     title="TDM Backend API",
     description="API สำหรับ TDM Fleet Management",
-    version="2.2.3",    # << ใส่ version ที่ต้องการ
+    version="2.2.4",    # << ใส่ version ที่ต้องการ
     contact={
         "name": "Plug",
         "email": "narongkorn.a@menatransport.co.th",
