@@ -906,13 +906,6 @@ def upsert_vehicle_data(
     data_list: List[VehicleCurrentDataCreate] = Body(...),
     db: Session = Depends(get_db),
 ):
-    """
-    ✅ Always bulk UPSERT for Vehicle Current Data
-    - Accepts multiple records in one POST
-    - If gps_vendor = 'dtc' → match gps_id
-    - If gps_vendor = 'thaitracking' → match plate_master
-    - Updates if exists, inserts if new
-    """
     results = []
     inserted, updated = 0, 0
 
@@ -928,11 +921,19 @@ def upsert_vehicle_data(
             print(f"⚠️ Skipping unknown vendor: {data.gps_vendor}")
             continue
 
-        # 2️⃣ Find existing record
-        record = db.query(models.VehicleCurrentData).filter(lookup_field == lookup_value).first()
+        # 2️⃣ Find ALL matching records (duplicates cause the StaleDataError)
+        records = db.query(models.VehicleCurrentData).filter(lookup_field == lookup_value).all()
 
-        # 3️⃣ Update or Insert
-        if record:
+        # 3️⃣ Delete duplicates, keep only first
+        if len(records) > 1:
+            for dup in records[1:]:
+                db.delete(dup)
+            db.flush()  # flush deletes before update
+            print(f"⚠️ Removed {len(records)-1} duplicate(s) for {lookup_value}")
+
+        # 4️⃣ Update or Insert
+        if records:
+            record = records[0]
             for key, value in data.dict(exclude_unset=True).items():
                 setattr(record, key, value)
             record.updated_at = datetime.utcnow()
@@ -947,7 +948,7 @@ def upsert_vehicle_data(
 
         results.append(record)
 
-    # 4️⃣ Commit once for performance
+    # 5️⃣ Commit once for performance
     db.commit()
     for r in results:
         db.refresh(r)
