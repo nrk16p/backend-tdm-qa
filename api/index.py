@@ -918,7 +918,7 @@ def upsert_vehicle_data(
 
     for data in data_list:
         # 1️⃣ Determine lookup field
-        if data.gps_vendor == "dtc":
+        if data.gps_vendor in ("dtc", "hino"):
             lookup_field = models.VehicleCurrentData.gps_id
             lookup_value = data.gps_id
         elif data.gps_vendor == "thaitracking":
