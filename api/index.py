@@ -914,7 +914,7 @@ def upsert_vehicle_data(
         if data.gps_vendor == "dtc":
             lookup_field = models.VehicleCurrentData.gps_id
             lookup_value = data.gps_id
-        elif data.gps_vendor in ("thaitracking", "hino"):
+        elif data.gps_vendor in ("thaitracking", "hino", "songdee"):
             lookup_field = models.VehicleCurrentData.plate_master
             lookup_value = data.plate_master
         else:
